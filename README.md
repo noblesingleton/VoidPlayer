@@ -46,7 +46,7 @@ The last digital veil removed.
 
 \## Licensing
 
-\- \*\*Open Source\*\*: MIT License (see LICENSE\_OPEN.txt) — free for personal use, modification, distribution.
+\- \*\*Open Source\*\*: MIT License (see LICENSE\_OPEN.md) — free for personal use, modification, distribution.
 
 \- \*\*Commercial/Embedded\*\*: Separate license required for hardware integration (DACs, streamers). Contact for details (see LICENSE\_COMMERCIAL.md).
 
@@ -101,4 +101,5 @@ Forever.
 
 
 ORYAAAAA!!! ⚡️🎧🧬
+
 
