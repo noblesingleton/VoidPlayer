@@ -3,6 +3,46 @@
 #include <JuceHeader.h>
 #include "Fixed256.h"
 
+class ConvolutionEngine
+{
+public:
+    ConvolutionEngine() = default;
+
+    void loadIR(const juce::File& irFile, juce::AudioFormatManager& manager);
+
+    void processBlock(juce::AudioBuffer<float>& buffer);
+
+private:
+    std::vector<Fixed256> irKernel;
+};
+
+class Modulator
+{
+public:
+    Modulator() = default;
+
+    void prepare(double sampleRate);
+
+    void setSchumann(bool on) { schumannOn = on; }
+
+    void set432Hz(bool on) { four32On = on; }
+
+    void setBinaural(bool on) { binauralOn = on; }
+
+    void setIntensity(double newIntensity) { intensity = newIntensity; }
+
+    void processBlock(juce::AudioBuffer<float>& buffer);
+
+private:
+    bool schumannOn = false;
+    bool four32On = false;
+    bool binauralOn = false;
+    double intensity = 0.0;
+    double phase = 0.0;
+    double currentSampleRate = 44100.0;
+    int mode = 0;
+};
+
 class MainComponent : public juce::Component,
                       public juce::FileDragAndDropTarget,
                       public juce::Slider::Listener,
@@ -41,14 +81,24 @@ private:
     juce::Label timeLabel;
     juce::Label cpuLabel;
 
+    juce::TextButton loadIRButton {"Load Impulse Response"};
+    juce::ToggleButton schumannToggle {"Schumann 7.83Hz"};
+    juce::ToggleButton four32Toggle {"432Hz Tuning"};
+    juce::ToggleButton binauralToggle {"Binaural Beats"};
+    juce::Slider modulatorIntensity {"Modulation Intensity"};
+
+    std::unique_ptr<juce::FileChooser> fileChooser;
+
     Fixed256 volumeLevel = Fixed256(0.8);
+
+    ConvolutionEngine convolution;
+    Modulator modulator;
 
     double cpuUsage = 0.0;
 
     void loadTrack (size_t index);
     void updateTransportButtons();
     void updateProgress();
-    void processBlock (juce::AudioBuffer<float>& buffer);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };
