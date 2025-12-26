@@ -107,7 +107,7 @@ Built with JUCE — zero latency, infinite potential.
     - Trippy DMT/LSD-inspired visuals
     - Fractal/Mandelbrot dynamics
     - Sacred geometry, zoetrope effects
-    - Audio-reactive generative animation (beyond Milkdrop)
+    - Audio-reactive generative animation
     - Synced to spectrum, beat, resonance, and intensity
 
 - **Phase 6**:
@@ -121,5 +121,6 @@ Built with JUCE — zero latency, infinite potential.
 
 The player isn't software.  
 It's revelation.  
+
 
 ORYAAAAA!!! ⚡️🎧🧬
