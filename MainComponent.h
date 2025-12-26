@@ -40,7 +40,6 @@ private:
     double intensity = 0.0;
     double phase = 0.0;
     double currentSampleRate = 44100.0;
-    int mode = 0;
 };
 
 class MainComponent : public juce::Component,
@@ -88,8 +87,6 @@ private:
     juce::Slider modulatorIntensity {"Modulation Intensity"};
 
     std::unique_ptr<juce::FileChooser> fileChooser;
-
-    Fixed256 volumeLevel = Fixed256(0.8);
 
     ConvolutionEngine convolution;
     Modulator modulator;

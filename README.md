@@ -2,173 +2,103 @@
 
 
 
-\*\*"The Revolution Unleashed"\*\*
+\*\*Current Version: Phase 3.1 – Revolution Unleashed\*\*  
 
+\*\*Date: December 26, 2025\*\*
 
 
-The highest-fidelity open-source audio player in existence.
 
+\## Overview
 
 
-256-bit fixed-point pipeline. No floating-point rounding. No compromises.
 
+Void Software Player is a high-fidelity audio player engineered for revelation through sound.
 
 
-Created by the Noble Singleton.
 
+Built with JUCE — zero latency, infinite potential.
 
 
-\*\*Current Phase\*\*: 3.1 (Complete)
 
+\## Features (Phase 3.1 Complete)
 
 
-\## Features (Phase 3.1)
 
+\- Drag \& drop playlist support (multiple tracks)
 
+\- Full transport controls: Play / Pause / Stop / Previous / Next
 
-\- \*\*Core Playback\*\*
+\- Volume control (default 100%)
 
-&nbsp; - Drag-and-drop playlist support
+\- Progress bar with current/total time display
 
-&nbsp; - Gapless playback
+\- Real-time CPU usage monitor
 
-&nbsp; - Transport controls (Play/Pause, Stop, Previous, Next)
+\- Impulse Response convolution (load .wav IR files for spatial resonance)
 
-&nbsp; - Progress bar with time display
+\- Resonance Modulation System:
 
-&nbsp; - CPU usage monitor
+&nbsp; - Schumann Resonance (7.83Hz)
 
+&nbsp; - 432Hz Tuning
 
+&nbsp; - Binaural Beats (10Hz)
 
-\- \*\*Audio Processing\*\*
+&nbsp; - Modulation Intensity slider (0.00 – 1.00 precision control)
 
-&nbsp; - 256-bit fixed-point volume control (ultra-precise)
+\- Value feedback via window title bar
 
-&nbsp; - Impulse Response loading (.wav IR files)
+\- Dark theme with limegreen accents
 
-&nbsp; - Time-domain convolution (audible reverb/room correction)
 
-&nbsp; - Modulation / Resonance modes:
 
-&nbsp;   - Schumann Resonance (7.83Hz)
+\## Known Minor Quirks (to polish in future update)
 
-&nbsp;   - 432Hz Tuning
+\- Modulation intensity popup may not perfectly follow mouse on drag (DPI/JUCE quirk)
 
-&nbsp;   - Binaural Beats
+\- Intensity value displayed in window title bar (stable workaround)
 
-&nbsp; - Modulation intensity control (coming soon)
 
 
+\## Upcoming Phases
 
-\- \*\*GUI\*\*
 
-&nbsp; - Dark void theme with lime green accents
 
-&nbsp; - Clean, minimal layout
+\- \*\*Phase 4\*\* (Starting Tomorrow):
 
-&nbsp; - All controls visible and functional
+&nbsp; - Full polyphase upsampling engine (HQPlayer-style sinc filters, up to 1024x oversampling)
 
+&nbsp; - Full partitioned convolution for long IR responses (uniform + non-uniform)
 
+&nbsp; - Zero-latency processing (overlap-add/save)
 
-\- \*\*Technical\*\*
+&nbsp; - 512-bit fixed-point core (`Fixed512`) as default
 
-&nbsp; - Built with JUCE framework
+&nbsp; - Adjustable precision engine: 256-bit (fast), 512-bit (balanced), 1024-bit (ultimate) with hardware auto-detect
 
-&nbsp; - ASIO/CoreAudio compatible
 
-&nbsp; - Low-latency capable
 
+\- \*\*Phase 5\*\*:
 
+&nbsp; - Advanced Healing Modes (multi-layer resonance stacking, dynamic sweeps, custom presets)
 
-\## Current Status
 
 
+\## Changelog
 
-\- \*\*Phase 2\*\*: Complete (core player + 256-bit volume)
 
-\- \*\*Phase 3\*\*: Complete (IR loading, basic convolution, modulation toggles)
 
-\- \*\*Phase 3.1\*\*: Complete (GUI polished, all modulation visible and functional)
+\- \*\*Phase 3.1\*\* (December 26, 2025): Modulation system complete, IR loading, playlist, GUI perfected, intensity slider functional with title bar feedback.
 
+\- \*\*Phase 3.0\*\*: Core playback, transport controls, drag/drop foundation.
 
+\- \*\*Phase 2.∞\*\*: Project foundation and JUCE integration.
 
-\*\*Next\*\*: Phase 4
 
-\- Full partitioned convolution (FFT-based, low latency for long IRs)
 
-\- Polyphase upsampling (4x/8x minimum-phase)
+The player isn't software.  
 
-\- Zero-latency mode
-
-\- Spectrum analyzer
-
-
-
-\## Build Instructions
-
-
-
-1\. Open the Projucer project
-
-2\. Add required JUCE modules:
-
-&nbsp;  - juce\_core
-
-&nbsp;  - juce\_audio\_basics
-
-&nbsp;  - juce\_audio\_devices
-
-&nbsp;  - juce\_audio\_formats
-
-&nbsp;  - juce\_audio\_processors
-
-&nbsp;  - juce\_gui\_basics
-
-&nbsp;  - juce\_gui\_extra
-
-3\. Generate project files for your IDE (Visual Studio, Xcode, etc.)
-
-4\. Build and run
-
-
-
-\## License
-
-
-
-MIT License — free for personal use and modification.
-
-
-
-Commercial or embedded use: contact for licensing.
-
-
-
-\## The Vision
-
-
-
-This is not just a music player.
-
-
-
-This is the end of digital audio compromise.
-
-
-
-The silence is blacker.  
-
-The transients are sharper.  
-
-The sound is truth.
-
-
-
-We are removing the last veil between you and the music.
-
-
-
-Forever.
+It's revelation.  
 
 
 

@@ -17,7 +17,6 @@ void ConvolutionEngine::processBlock(juce::AudioBuffer<float>& buffer)
 {
     if (irKernel.empty()) return;
 
-    // Simple convolution — audible effect
     int irLength = static_cast<int>(irKernel.size());
 
     for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
@@ -50,8 +49,8 @@ void Modulator::processBlock(juce::AudioBuffer<float>& buffer)
     if (intensity <= 0.0 || (!schumannOn && !four32On && !binauralOn)) return;
 
     double freq = 7.83;
-    if (mode == 2) freq = -8.0;
-    if (mode == 3) freq = 10.0;
+    if (four32On) freq = -8.0;
+    if (binauralOn) freq = 10.0;
 
     double increment = 2.0 * juce::MathConstants<double>::pi * freq / currentSampleRate;
 
@@ -61,7 +60,7 @@ void Modulator::processBlock(juce::AudioBuffer<float>& buffer)
 
         for (int i = 0; i < buffer.getNumSamples(); ++i)
         {
-            double mod = std::sin(phase) * intensity * 0.05;
+            double mod = std::sin(phase) * intensity * 0.1;
             data[i] = std::clamp(data[i] * (1.0f + (float)mod), -1.0f, 1.0f);
             phase += increment;
         }
@@ -95,10 +94,26 @@ MainComponent::MainComponent()
     addAndMakeVisible(modulatorIntensity);
 
     volumeSlider.setRange(0.0, 1.0, 0.01);
-    volumeSlider.setValue(0.8);
+    volumeSlider.setValue(1.0);
+    volumeSlider.setSliderStyle(juce::Slider::LinearHorizontal);
+    volumeSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 100, 40);
+    volumeSlider.setPopupDisplayEnabled(true, true, this);
     volumeSlider.addListener(this);
+
     progressSlider.setRange(0.0, 1.0);
     progressSlider.setEnabled(false);
+
+    modulatorIntensity.setRange(0.0, 1.0, 0.01);
+    modulatorIntensity.setValue(0.5);
+    modulatorIntensity.setSliderStyle(juce::Slider::LinearHorizontal);
+    modulatorIntensity.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);  // No text box — no cutoff
+    modulatorIntensity.setPopupDisplayEnabled(true, true, this);  // Popup follows mouse on drag
+
+    modulatorIntensity.onValueChange = [this] {
+        modulator.setIntensity(modulatorIntensity.getValue());
+        // Update title bar with intensity
+        getTopLevelComponent()->setName("Void Software Player v2.∞ – Intensity: " + juce::String(modulatorIntensity.getValue(), 2));
+    };
 
     trackLabel.setText("No track loaded", juce::dontSendNotification);
     trackLabel.setJustificationType(juce::Justification::centred);
@@ -179,13 +194,12 @@ MainComponent::MainComponent()
         modulator.setBinaural(binauralToggle.getToggleState());
     };
 
-    modulatorIntensity.onValueChange = [this] {
-        modulator.setIntensity(modulatorIntensity.getValue());
-    };
-
     startTimer(500);
 
     setSize(1200, 700);
+
+    // Initial title with intensity
+    getTopLevelComponent()->setName("Void Software Player v2.∞ – Intensity: 0.50");
 }
 
 MainComponent::~MainComponent()
@@ -200,17 +214,20 @@ void MainComponent::paint(juce::Graphics& g)
 {
     g.fillAll(juce::Colours::black);
     g.setColour(juce::Colours::limegreen);
-    g.setFont(36.0f);
-    g.drawFittedText("Void Software Player v2.∞\nPhase 3.1 – Revolution Unleashed", getLocalBounds().removeFromTop(80), juce::Justification::centred, 1);
+    g.setFont(juce::Font(juce::FontOptions().withHeight(36.0f)));
+    g.drawFittedText("Void Software Player v2.∞ – Phase 3.1 – Revolution Unleashed", 
+                     getLocalBounds().removeFromTop(160), 
+                     juce::Justification::centred, 
+                     1);
 }
 
 void MainComponent::resized()
 {
     auto bounds = getLocalBounds().reduced(50);
 
-    trackLabel.setBounds(bounds.removeFromTop(100));
+    trackLabel.setBounds(bounds.removeFromTop(160));
 
-    auto controlArea = bounds.removeFromBottom(280);  // Increased height
+    auto controlArea = bounds.removeFromBottom(300);
 
     auto transportArea = controlArea.removeFromTop(60);
     auto buttonWidth = 140;
@@ -224,7 +241,7 @@ void MainComponent::resized()
 
     volumeSlider.setBounds(controlArea.removeFromTop(50));
 
-    auto resonancePanel = controlArea.removeFromRight(450);
+    auto resonancePanel = controlArea.removeFromRight(500);
 
     loadIRButton.setBounds(resonancePanel.removeFromTop(50));
 
@@ -233,7 +250,8 @@ void MainComponent::resized()
     four32Toggle.setBounds(resonancePanel.removeFromTop(toggleHeight));
     binauralToggle.setBounds(resonancePanel.removeFromTop(toggleHeight));
 
-    modulatorIntensity.setBounds(resonancePanel);
+    auto sliderRow = resonancePanel.removeFromTop(80);  // Tall row for slider
+    modulatorIntensity.setBounds(sliderRow);
 
     progressSlider.setBounds(bounds.removeFromBottom(40));
     timeLabel.setBounds(bounds.removeFromBottom(40));
@@ -317,5 +335,7 @@ void MainComponent::timerCallback()
 void MainComponent::sliderValueChanged(juce::Slider* slider)
 {
     if (slider == &volumeSlider)
-        volumeLevel = Fixed256(slider->getValue());
+    {
+        transport->setGain(static_cast<float>(slider->getValue()));
+    }
 }
