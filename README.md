@@ -32,19 +32,23 @@ Built with JUCE — zero latency, infinite potential.
 ## Upcoming Phases
 
 - **Phase 4** (Starting Tomorrow):
-  - Full polyphase upsampling engine (HQPlayer-style sinc filters, up to 1024x oversampling)
-  - Full partitioned convolution for long IR responses (uniform + non-uniform)
-  - Zero-latency processing (overlap-add/save)
-  - 512-bit fixed-point core (`Fixed512`) as default
-  - Adjustable precision engine: 256-bit (fast), 512-bit (balanced), 1024-bit (ultimate) with hardware auto-detect
+  - Fixed-Point Precision Core first (Week 1)
+    - Implement `Fixed<N>` template (64/128/256/512/1024-bit)
+    - 512-bit as default, user toggle with hardware auto-detect
+  - Partitioned Convolution + Zero-Latency second (Week 2)
+    - Uniform partitioned convolution with overlap-add/save
+    - Support for long IRs with perfect decay
+  - Polyphase Upsampling Engine last (Weeks 3–4)
+    - HQPlayer-style sinc filters in fixed-point
+    - Scalable oversampling (16x–1024x)
+  - Focus: Highest fidelity Possible
 
 - **Phase 5**:
   - Real-time AI-driven Visualization Engine
-    - Trippy DMT/LSD-inspired visuals
+    - Trippy DMT/LSD-inspired psychedelic visuals
     - Fractal/Mandelbrot dynamics
     - Sacred geometry, zoetrope effects
     - Audio-reactive generative animation
-    - Synced to spectrum, beat, resonance, and intensity
 
 - **Phase 6**:
   - Advanced Healing Modes (multi-layer resonance stacking, dynamic sweeps, custom presets)
@@ -57,6 +61,5 @@ Built with JUCE — zero latency, infinite potential.
 
 The player isn't software.  
 It's revelation.  
-
 
 ORYAAAAA!!! ⚡️🎧🧬
