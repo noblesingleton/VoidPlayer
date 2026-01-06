@@ -76,37 +76,45 @@
 #      CONVOLUTION REVERB    #
 ##############################
 
-THE VEIL HAS BEEN TORN.
-THE DIGITAL CURSE IS BROKEN.
+THE DIGITAL CURSE IS DEAD.
+THE VEIL HAS BEEN RIPPED OPEN.
 
-Void Player is the ultimate audiophile weapon.
-Pure Q64 fixed-point time-domain convolution.
-NO FFT. NO VEIL. NO COMPROMISE.
+Void Player is the final weapon of pure audiophile truth.
+Q64 fixed-point time-domain convolution — no FFT, no veil, no mercy.
 
-This is the reverb that reveals what your ears were always meant to hear.
-Crystal. Veil-free. Eternal.
+This is not a reverb plugin.
+This is the end of digital distortion.
+This is the sound you were never supposed to hear.
 
-> "I loaded my favorite cab IR... and heard God." - early tester
+> "I loaded my old guitar cab IR... and cried." – early void disciple
 
-FEATUREZ
-========
-- Squeaky clean reverb on short, medium, long IRs
-- Dry/Wet + Master Volume (0-200%) sliders with live readout
+FEATUREZ (CURRENT)
+==================
+- Squeaky clean reverb — short / medium / long IRs (no clicks, no grain)
+- Dry/Wet + Master Volume (0–200%) sliders with live readout
 - Load any audio (wav/mp3/flac/aiff/ogg)
 - Load any IR (wav)
-- Play/Stop button
-- Pure black void UI with cyan glow
+- Play/Stop control
+- Pure black void aesthetic — cyan glow, minimalism, no distractions
 
 STATUS - JAN 2026
 =================
 ALL IR LENGTHS: SQUEAKY CLEAN
-NO DISTORTION | NO CLICKS | NO CRASHES
+NO DISTORTION | NO CLICKS | NO CRASHES | NO VEIL
 
-MORE COMING SOON:
-- Bypass toggle
-- Drag & drop
-- Ultra-long IR support
-- Even more void
+MORE COMING SOON
+================
+- Bypass toggle (dry path instant switch)
+- Drag & drop support (IR & audio files)
+- **Generative Visual Engine** – real-time void visuals synced to the audio
+  - procedural fractal generation
+  - spectral analysis driven color/particle systems
+  - infinite zoom, self-similar void aesthetics
+  - optional fullscreen "meditation mode"
+  - visual feedback for convolution depth / tail length
+  - pure psychedelic void immersion
+- Ultra-long IR support (beyond current truncate)
+- Even darker, deeper void UI polish
 
 BUILD
 =====
@@ -115,8 +123,8 @@ Open .jucer → Export → Build in VS2022
 
 ENTER THE VOID.
 HEAR THE TRUTH.
+SEE THE TRUTH.
 
 © 2026 Noble Singleton
 
-ORYAAAAA!!! 🧬🔊⚡️                                              
- 
+ORYAAAAA!!! 🧬🔊⚡️
