@@ -10,8 +10,8 @@ public:
     void prepare(double sampleRate, int blockSize);
     void reset();
     void loadIR(const juce::File& irFile);
-    bool isReady() const { return !irQ31.empty(); }
-    void processBlock(int32_t* left, int32_t* right, int numSamples);
+    bool isReady() const { return !irQ64.empty(); }
+    void processBlock(float* left, float* right, int numSamples);  // <-- Changed to float*
 
 private:
     void partitionIR();
@@ -20,10 +20,10 @@ private:
     int blockSize = 512;
     int partitionSize = 512;
 
-    std::vector<int32_t> irQ31;
-    std::vector<int32_t> irPartitions;
-    std::vector<int32_t> inputHistoryL;
-    std::vector<int32_t> inputHistoryR;
+    std::vector<int64_t> irQ64;
+    std::vector<int64_t> irPartitions;
+    std::vector<int64_t> inputHistoryL;
+    std::vector<int64_t> inputHistoryR;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VoidConvolutionEngine)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (VoidConvolutionEngine)
 };

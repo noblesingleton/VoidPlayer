@@ -1,5 +1,3 @@
-// MainComponent.h — Final version with working Wet Gain slider and soft clipping (December 31, 2025)
-
 #pragma once
 
 #include <JuceHeader.h>
@@ -19,35 +17,37 @@ public:
 
     void paint(juce::Graphics& g) override;
     void resized() override;
-
     void sliderValueChanged(juce::Slider* slider) override;
 
 private:
     void changeListenerCallback(juce::ChangeBroadcaster* source) override;
-
     void loadFile();
     void loadImpulseResponse();
 
     // UI
-    juce::TextButton loadButton   { "Load Audio" };
+    juce::TextButton loadButton { "Load Audio" };
     juce::TextButton loadIRButton { "Load IR" };
-    juce::TextButton playButton   { "Play" };
-    juce::TextButton stopButton   { "Stop" };
-    juce::Label      statusLabel;
+    juce::TextButton playStopButton { "Play" };
+    juce::Label statusLabel;
+    juce::Slider wetSlider;
+    juce::Label wetLabel;
+    juce::Label wetValueLabel;
+    juce::Slider volumeSlider;
+    juce::Label volumeLabel;
+    juce::Label volumeValueLabel;
 
-    juce::Slider     wetSlider;
-    juce::Label      wetLabel;
-
-    // Audio playback
+    // Audio
     juce::AudioFormatManager formatManager;
     std::unique_ptr<juce::AudioFormatReaderSource> readerSource;
     juce::AudioTransportSource transportSource;
-
-    // Convolution core
     VoidConvolutionEngine convolutionEngine;
 
-    // Wet gain control
-    float wetGain = 16.0f;
+    // Controls
+    float wetMix = 1.0f;
+    float masterVolume = 1.0f;
+
+    // Async FileChooser
+    std::unique_ptr<juce::FileChooser> fileChooser;  // <-- Added here
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainComponent)
 };

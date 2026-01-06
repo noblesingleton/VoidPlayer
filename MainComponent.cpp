@@ -1,61 +1,79 @@
-// MainComponent.cpp — Final version with working Wet Gain slider and soft clipping (December 31, 2025)
-
 #include "MainComponent.h"
-#include <cmath>  // for std::tanh
+#include <cmath>
 
 MainComponent::MainComponent()
 {
     formatManager.registerBasicFormats();
     transportSource.addChangeListener(this);
 
+    // Void Aesthetic
+    setColour(juce::TextButton::buttonColourId, juce::Colours::darkgrey);
+    setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+    setColour(juce::Label::textColourId, juce::Colours::lightgrey);
+    setColour(juce::Slider::thumbColourId, juce::Colours::cyan);
+    setColour(juce::Slider::trackColourId, juce::Colours::darkgrey);
+    setColour(juce::Slider::backgroundColourId, juce::Colours::black);
+
     addAndMakeVisible(loadButton);
+    loadButton.setButtonText("Load Audio");
     loadButton.onClick = [this] { loadFile(); };
 
     addAndMakeVisible(loadIRButton);
+    loadIRButton.setButtonText("Load IR");
     loadIRButton.onClick = [this] { loadImpulseResponse(); };
 
-    addAndMakeVisible(playButton);
-    playButton.onClick = [this]
+    addAndMakeVisible(playStopButton);
+    playStopButton.setButtonText("Play");
+    playStopButton.onClick = [this]
     {
         if (transportSource.isPlaying())
+        {
             transportSource.stop();
+            convolutionEngine.reset();  // Clear tail on stop
+        }
         else
+        {
             transportSource.start();
+        }
     };
-    playButton.setEnabled(false);
-
-    addAndMakeVisible(stopButton);
-    stopButton.onClick = [this]
-    {
-        transportSource.stop();
-        transportSource.setPosition(0.0);
-    };
-
-    loadButton.setButtonText("Load Audio");
-    loadIRButton.setButtonText("Load IR");
-    playButton.setButtonText("Play");
-    stopButton.setButtonText("Stop");
+    playStopButton.setEnabled(false);
 
     addAndMakeVisible(statusLabel);
-    statusLabel.setText("No IR loaded – Dry path active", juce::dontSendNotification);
+    statusLabel.setText("No IR loaded – Enter the void", juce::dontSendNotification);
     statusLabel.setJustificationType(juce::Justification::centred);
-    statusLabel.setColour(juce::Label::textColourId, juce::Colours::lightgrey);
-    statusLabel.setFont(juce::Font(juce::FontOptions(15.0f)));
+    statusLabel.setFont(juce::Font(18.0f, juce::Font::bold));
 
-    // Wet Gain slider — visible and fully responsive
+    // Wet Slider (horizontal)
     addAndMakeVisible(wetSlider);
-    wetSlider.setRange(0.0, 64.0, 0.1);
-    wetSlider.setValue(16.0);  // Start with +24dB wet boost
-    wetSlider.setSliderStyle(juce::Slider::LinearVertical);
-    wetSlider.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
+    wetSlider.setRange(0.0, 1.0, 0.01);
+    wetSlider.setValue(1.0);
+    wetSlider.setSliderStyle(juce::Slider::LinearHorizontal);
+    wetSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 80, 20);
     wetSlider.addListener(this);
 
     addAndMakeVisible(wetLabel);
-    wetLabel.setText("Wet Gain", juce::dontSendNotification);
-    wetLabel.attachToComponent(&wetSlider, false);
-    wetLabel.setJustificationType(juce::Justification::centred);
+    wetLabel.setText("Dry / Wet", juce::dontSendNotification);
+    wetLabel.attachToComponent(&wetSlider, true);
 
-    setSize(700, 400);
+    addAndMakeVisible(wetValueLabel);
+    wetValueLabel.setText("100% Wet", juce::dontSendNotification);
+
+    // Volume Slider (horizontal)
+    addAndMakeVisible(volumeSlider);
+    volumeSlider.setRange(0.0, 2.0, 0.01);
+    volumeSlider.setValue(1.0);
+    volumeSlider.setSliderStyle(juce::Slider::LinearHorizontal);
+    volumeSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 80, 20);
+    volumeSlider.addListener(this);
+
+    addAndMakeVisible(volumeLabel);
+    volumeLabel.setText("Master Volume", juce::dontSendNotification);
+    volumeLabel.attachToComponent(&volumeSlider, true);
+
+    addAndMakeVisible(volumeValueLabel);
+    volumeValueLabel.setText("100%", juce::dontSendNotification);
+
+    setSize(800, 500);
     setAudioChannels(0, 2);
 }
 
@@ -88,37 +106,54 @@ void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& buffer
         float* floatL = bufferToFill.buffer->getWritePointer(0, start);
         float* floatR = bufferToFill.buffer->getWritePointer(1, start);
 
-        // Thread-local Q31 buffers
-        static thread_local std::vector<int32_t> q31L(numSamples);
-        static thread_local std::vector<int32_t> q31R(numSamples);
-        q31L.resize(numSamples);
-        q31R.resize(numSamples);
+        // Preserve dry signal
+        std::vector<float> dryL(floatL, floatL + numSamples);
+        std::vector<float> dryR(floatR, floatR + numSamples);
 
-        // Float → Q31
+        // Apply convolution to wet copy
+        std::vector<float> wetL(numSamples);
+        std::vector<float> wetR(numSamples);
+        std::memcpy(wetL.data(), floatL, numSamples * sizeof(float));
+        std::memcpy(wetR.data(), floatR, numSamples * sizeof(float));
+
+        convolutionEngine.processBlock(wetL.data(), wetR.data(), numSamples);
+
+        // Mix dry + wet + clamp + tanh
         for (int i = 0; i < numSamples; ++i)
         {
-            q31L[i] = static_cast<int32_t>(floatL[i] * 2147483647.0f);
-            q31R[i] = static_cast<int32_t>(floatR[i] * 2147483647.0f);
-        }
+            float mixedL = dryL[i] * (1.0f - wetMix) + wetL[i] * wetMix;
+            float mixedR = dryR[i] * (1.0f - wetMix) + wetR[i] * wetMix;
 
-        // Pure fixed-point convolution
-        convolutionEngine.processBlock(q31L.data(), q31R.data(), numSamples);
+            mixedL *= masterVolume;
+            mixedR *= masterVolume;
 
-        // Q31 → Float with wet gain, 50/50 mix, and soft clipping (tanh)
-        for (int i = 0; i < numSamples; ++i)
-        {
-            float wetL = q31L[i] / 2147483648.0f * wetGain;
-            float wetR = q31R[i] / 2147483648.0f * wetGain;
+            // Hard clamp before tanh
+            mixedL = juce::jlimit(-1.0f, 1.0f, mixedL);
+            mixedR = juce::jlimit(-1.0f, 1.0f, mixedR);
 
-            float mixedL = (floatL[i] * 0.5f) + (wetL * 0.5f);
-            float mixedR = (floatR[i] * 0.5f) + (wetR * 0.5f);
-
-            // Soft clipping — tanh prevents harsh distortion at high gain
             mixedL = std::tanh(mixedL);
             mixedR = std::tanh(mixedR);
 
             floatL[i] = mixedL;
             floatR[i] = mixedR;
+        }
+    }
+    else
+    {
+        // Dry path
+        float* floatL = bufferToFill.buffer->getWritePointer(0);
+        float* floatR = bufferToFill.buffer->getWritePointer(1);
+
+        for (int i = 0; i < bufferToFill.numSamples; ++i)
+        {
+            floatL[i] *= masterVolume;
+            floatR[i] *= masterVolume;
+
+            floatL[i] = juce::jlimit(-1.0f, 1.0f, floatL[i]);
+            floatR[i] = juce::jlimit(-1.0f, 1.0f, floatR[i]);
+
+            floatL[i] = std::tanh(floatL[i]);
+            floatR[i] = std::tanh(floatR[i]);
         }
     }
 }
@@ -138,65 +173,89 @@ void MainComponent::resized()
 {
     auto area = getLocalBounds().reduced(40);
 
-    auto topRow = area.removeFromTop(80);
-    loadButton.setBounds(topRow.removeFromLeft(150));
-    loadIRButton.setBounds(topRow.removeFromLeft(150).translated(20, 0));
+    auto buttonArea = area.removeFromLeft(200);
+    auto buttonHeight = 60;
 
-    area.removeFromTop(20);
+    loadButton.setBounds(buttonArea.removeFromTop(buttonHeight));
+    buttonArea.removeFromTop(20);
+    loadIRButton.setBounds(buttonArea.removeFromTop(buttonHeight));
+    buttonArea.removeFromTop(20);
+    playStopButton.setBounds(buttonArea.removeFromTop(buttonHeight));
 
-    auto playRow = area.removeFromTop(80);
-    playButton.setBounds(playRow.removeFromLeft(150));
-    stopButton.setBounds(playRow.removeFromLeft(150).translated(20, 0));
-
-    area.removeFromTop(20);
+    area.removeFromLeft(40);
 
     statusLabel.setBounds(area.removeFromTop(60));
 
-    auto sliderArea = getLocalBounds().reduced(20).removeFromRight(120);
-    wetSlider.setBounds(sliderArea.removeFromBottom(250));
+    area.removeFromTop(40);
+
+    auto wetRow = area.removeFromTop(60);
+    wetLabel.setBounds(wetRow.removeFromLeft(150));
+    wetSlider.setBounds(wetRow.removeFromLeft(400));
+    wetValueLabel.setBounds(wetRow);
+
+    area.removeFromTop(30);
+
+    auto volumeRow = area.removeFromTop(60);
+    volumeLabel.setBounds(volumeRow.removeFromLeft(150));
+    volumeSlider.setBounds(volumeRow.removeFromLeft(400));
+    volumeValueLabel.setBounds(volumeRow);
 }
 
 void MainComponent::changeListenerCallback(juce::ChangeBroadcaster* source)
 {
     if (source == &transportSource)
-        playButton.setButtonText(transportSource.isPlaying() ? "Stop" : "Play");
+    {
+        playStopButton.setButtonText(transportSource.isPlaying() ? "Stop" : "Play");
+    }
 }
 
 void MainComponent::sliderValueChanged(juce::Slider* slider)
 {
     if (slider == &wetSlider)
-        wetGain = static_cast<float>(wetSlider.getValue());
+    {
+        wetMix = static_cast<float>(wetSlider.getValue());
+        wetValueLabel.setText(juce::String(static_cast<int>(wetMix * 100)) + "% Wet", juce::dontSendNotification);
+    }
+    else if (slider == &volumeSlider)
+    {
+        masterVolume = static_cast<float>(volumeSlider.getValue());
+        volumeValueLabel.setText(juce::String(static_cast<int>(masterVolume * 100)) + "%", juce::dontSendNotification);
+    }
 }
 
 void MainComponent::loadFile()
 {
-    juce::FileChooser chooser("Select audio file to convolve...", {}, "*.wav;*.mp3;*.flac;*.aiff;*.ogg");
-
-    if (chooser.browseForFileToOpen())
-    {
-        auto file = chooser.getResult();
-        auto* reader = formatManager.createReaderFor(file);
-
-        if (reader != nullptr)
-        {
-            auto newSource = std::make_unique<juce::AudioFormatReaderSource>(reader, true);
-            transportSource.setSource(newSource.get(), 0, nullptr, reader->sampleRate);
-            readerSource = std::move(newSource);
-            playButton.setEnabled(true);
-            playButton.setButtonText("Play");
-        }
-    }
+    fileChooser = std::make_unique<juce::FileChooser>("Select audio file...", juce::File{}, "*.wav;*.mp3;*.flac;*.aiff;*.ogg");
+    fileChooser->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                             [this](const juce::FileChooser& fc)
+                             {
+                                 auto file = fc.getResult();
+                                 if (file != juce::File{})
+                                 {
+                                     auto* reader = formatManager.createReaderFor(file);
+                                     if (reader != nullptr)
+                                     {
+                                         auto newSource = std::make_unique<juce::AudioFormatReaderSource>(reader, true);
+                                         transportSource.setSource(newSource.get(), 0, nullptr, reader->sampleRate);
+                                         readerSource = std::move(newSource);
+                                         playStopButton.setEnabled(true);
+                                         playStopButton.setButtonText("Play");
+                                     }
+                                 }
+                             });
 }
 
 void MainComponent::loadImpulseResponse()
 {
-    juce::FileChooser chooser("Load Impulse Response – Enter the void", {}, "*.wav");
-
-    if (chooser.browseForFileToOpen())
-    {
-        auto file = chooser.getResult();
-        convolutionEngine.loadIR(file);
-
-        statusLabel.setText("IR: " + file.getFileName() + " – Void breathing pure Q31", juce::dontSendNotification);
-    }
+    fileChooser = std::make_unique<juce::FileChooser>("Load Impulse Response – Enter the void", juce::File{}, "*.wav");
+    fileChooser->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                             [this](const juce::FileChooser& fc)
+                             {
+                                 auto file = fc.getResult();
+                                 if (file != juce::File{})
+                                 {
+                                     convolutionEngine.loadIR(file);
+                                     statusLabel.setText("IR: " + file.getFileName() + " – VOID Eternal Active", juce::dontSendNotification);
+                                 }
+                             });
 }
