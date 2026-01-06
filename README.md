@@ -82,17 +82,17 @@ THE VEIL HAS BEEN RIPPED OPEN.
 Void Player is the final weapon of pure audiophile truth.
 Q64 fixed-point time-domain convolution — no FFT, no veil, no mercy.
 
-This is not a reverb plugin.
-This is the end of digital distortion.
-This is the sound you were never supposed to hear.
+This is not just a reverb tool.
+This is a **general music playback beast** with eternal convolution power.
+Load any track, slap on your favorite IR, and hear the truth.
 
 > "I loaded my old guitar cab IR... and cried." – early void disciple
 
 FEATUREZ (CURRENT)
 ==================
 - Squeaky clean reverb — short / medium / long IRs (no clicks, no grain)
+- General music playback (wav/mp3/flac/aiff/ogg)
 - Dry/Wet + Master Volume (0–200%) sliders with live readout
-- Load any audio (wav/mp3/flac/aiff/ogg)
 - Load any IR (wav)
 - Play/Stop control
 - Pure black void aesthetic — cyan glow, minimalism, no distractions
