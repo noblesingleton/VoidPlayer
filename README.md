@@ -71,7 +71,7 @@
                                  .
                                                                                                                                                                                          
 ```                                              
- ##############################
+##############################
 # VOID PLAYER - ETERNAL VOID #
 #      CONVOLUTION REVERB    #
 ##############################
@@ -102,19 +102,37 @@ STATUS - JAN 2026
 ALL IR LENGTHS: SQUEAKY CLEAN
 NO DISTORTION | NO CLICKS | NO CRASHES | NO VEIL
 
+NEXT PLAN - DRY & WET MODE SUPREMACY
+====================================
+Goal: Make Void Player the highest-fidelity music player in existence
+
+Phase 1 – Core Upgrades
+- Optional oversampling (2x/4x/8x) with linear/minimum-phase FIR filters
+- Advanced filter library (poly-sinc-gauss, closed-form, sinc-M)
+- Delta-sigma modulators (DSD256/512 output)
+- Bit-perfect toggle + dither options
+- All features applied to **both dry and wet paths**
+
+Phase 2 – UI
+- Dry/Wet mode panel with filter/modulator selection
+- Real-time CPU monitor
+- Preset save/load
+
+Phase 3 – Void Signature
+- Custom "Void" filters — ultimate anti-imaging + analog warmth
+- The void will dominate all playback.
+
 MORE COMING SOON
 ================
-- Bypass toggle (dry path instant switch)
-- Drag & drop support (IR & audio files)
-- **Generative Visual Engine** – real-time void visuals synced to the audio
-  - procedural fractal generation
-  - spectral analysis driven color/particle systems
-  - infinite zoom, self-similar void aesthetics
-  - optional fullscreen "meditation mode"
-  - visual feedback for convolution depth / tail length
-  - pure psychedelic void immersion
-- Ultra-long IR support (beyond current truncate)
-- Even darker, deeper void UI polish
+- Bypass toggle
+- Drag & drop support
+- **Generative Visual Engine** – real-time void visuals synced to audio
+  - procedural fractals
+  - spectral-driven particles
+  - infinite zoom meditation mode
+  - convolution depth visualization
+  - pure psychedelic immersion
+- Even darker void UI polish
 
 BUILD
 =====
