@@ -102,37 +102,36 @@ STATUS - JAN 2026
 ALL IR LENGTHS: SQUEAKY CLEAN
 NO DISTORTION | NO CLICKS | NO CRASHES | NO VEIL
 
-NEXT PLAN - DRY & WET MODE SUPREMACY
-====================================
-Goal: Make Void Player the highest-fidelity music player in existence
+LOCKED ROADMAP - THE VOID ASCENDS
+================================
 
-Phase 1 – Core Upgrades
-- Optional oversampling (2x/4x/8x) with linear/minimum-phase FIR filters
-- Advanced filter library (poly-sinc-gauss, closed-form, sinc-M)
-- Delta-sigma modulators (DSD256/512 output)
-- Bit-perfect toggle + dither options
-- All features applied to **both dry and wet paths**
+**Phase 1 — Core Performance & Purity** (Current Focus)
+1. Multi-Threaded Convolution  
+2. ASIO/WASAPI Exclusive Mode  
+3. Zero-Latency Monitoring Path  
+4. Upsampling Engine (2x/4x/8x)  
+5. Advanced Filters + Custom Void Filters  
+6. Delta-Sigma Modulators (DSD512 → DSD1024+)  
+7. Bit-Perfect Toggle + Dither  
 
-Phase 2 – UI
-- Dry/Wet mode panel with filter/modulator selection
-- Real-time CPU monitor
-- Preset save/load
+**Phase 2 — Reverb Infinity**
+8. Procedural Tail Extension (infinite decay)  
+9. Dynamic ER/LR Separation + Void Modulation  
 
-Phase 3 – Void Signature
-- Custom "Void" filters — ultimate anti-imaging + analog warmth
-- The void will dominate all playback.
+**Phase 3 — Commercial Functionality**
+10. Track Duration Slider (dynamic progress + time)  
+11. Drag & Drop + File Listing  
+12. Gapless Playback  
+13. Dynamic CPU Indicator  
+14. Waveform Visualizer (time-domain, no FFT)  
 
-MORE COMING SOON
-================
-- Bypass toggle
-- Drag & drop support
-- **Generative Visual Engine** – real-time void visuals synced to audio
-  - procedural fractals
-  - spectral-driven particles
-  - infinite zoom meditation mode
-  - convolution depth visualization
-  - pure psychedelic immersion
-- Even darker void UI polish
+**Phase 4 — Generative Visual Engine**
+15. Imagine on Acid Visuals  
+    - Real-time surreal hyper-real dream scenes  
+    - Audio + convolution synced morphing  
+    - Infinite zoom meditation mode  
+
+All features optional/toggleable — current squeaky clean core remains default.
 
 BUILD
 =====
