@@ -118,18 +118,17 @@ KNOWN TEMPORARY LIMITATION
 
 MORE COMING SOON
 ================
-- Drag & Drop support (audio + IR files)
+- Drag & Drop support
 - Multithreading — zero dropouts with massive IRs
 - Upsampling — 2x/4x elite quality
-- **DSD playback support** — native DSD64/DSD128/DSD256
+- **DSD playback support** — native DSD64/DSD128/DSD256/DSD512/DSD1024
 - **Fractal Decay** — nature-inspired reverb tail shaping with self-similar fractal curves (forests, caves, cathedrals, infinite void decay)
-- **Void Filter** — custom reverb tail processing inspired by natural spaces
-- **Hyper Real Dream Scenes** — generative surreal landscapes and dream-like environments reacting to audio spectrum and convolution tail
 - **Custom Void Filters & Modulators** — elite EQ, LFO, envelope, phase destruction
 - **Gapless playback** — seamless track transitions
 - Playlist/Queue system
 - Keyboard shortcuts
 - **Generative Visual Engine** – real-time void visuals synced to the audio
+- **Hyper Real Dream Scenes** — generative surreal landscapes and dream-like environments reacting to audio spectrum and convolution tail                                          
   - procedural fractal generation
   - spectral analysis driven color/particle systems
   - infinite zoom, self-similar void aesthetics
@@ -140,6 +139,8 @@ MORE COMING SOON
 - Even darker, deeper void UI polish
 - Preset save/load
 - Bit-perfect indicator
+- CPU Indicator
+- Latency Indicator
 
 BUILD
 =====
@@ -151,5 +152,6 @@ HEAR THE TRUTH.
 SEE THE TRUTH.
 
 © 2026 Noble Singleton
+
 
 ORYAAAAA!!! 🧬🔊⚡️
