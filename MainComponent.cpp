@@ -6,75 +6,124 @@ MainComponent::MainComponent()
     formatManager.registerBasicFormats();
     transportSource.addChangeListener(this);
 
-    // Void Aesthetic
-    setColour(juce::TextButton::buttonColourId, juce::Colours::darkgrey);
-    setColour(juce::TextButton::textColourOffId, juce::Colours::white);
-    setColour(juce::Label::textColourId, juce::Colours::lightgrey);
+    // Dark VOID theme
+    setColour(juce::ResizableWindow::backgroundColourId, juce::Colours::black);
+    setColour(juce::TextButton::buttonColourId, juce::Colour(0xff0a1a2a));
+    setColour(juce::TextButton::textColourOffId, juce::Colours::cyan);
+    setColour(juce::TextButton::textColourOnId, juce::Colours::white);
     setColour(juce::Slider::thumbColourId, juce::Colours::cyan);
     setColour(juce::Slider::trackColourId, juce::Colours::darkgrey);
-    setColour(juce::Slider::backgroundColourId, juce::Colours::black);
+    setColour(juce::Slider::backgroundColourId, juce::Colour(0xff0a1a2a));
+    setColour(juce::Label::textColourId, juce::Colours::lightgrey);
+    setColour(juce::ToggleButton::textColourId, juce::Colours::cyan);
+    setColour(juce::ToggleButton::tickColourId, juce::Colours::cyan);
 
     addAndMakeVisible(loadButton);
-    loadButton.setButtonText("Load Audio");
     loadButton.onClick = [this] { loadFile(); };
 
     addAndMakeVisible(loadIRButton);
-    loadIRButton.setButtonText("Load IR");
     loadIRButton.onClick = [this] { loadImpulseResponse(); };
 
     addAndMakeVisible(playStopButton);
-    playStopButton.setButtonText("Play");
     playStopButton.onClick = [this]
     {
         if (transportSource.isPlaying())
         {
             transportSource.stop();
-            convolutionEngine.reset();  // Clear tail on stop
+            clearConvolutionHistory();
         }
         else
         {
+            if (transportSource.hasStreamFinished())
+            {
+                transportSource.setPosition(0.0);
+                clearConvolutionHistory();
+            }
             transportSource.start();
         }
     };
     playStopButton.setEnabled(false);
 
     addAndMakeVisible(statusLabel);
-    statusLabel.setText("No IR loaded – Enter the void", juce::dontSendNotification);
+    statusLabel.setText("No IR loaded – Dry path active", juce::dontSendNotification);
     statusLabel.setJustificationType(juce::Justification::centred);
-    statusLabel.setFont(juce::Font(18.0f, juce::Font::bold));
+    statusLabel.setFont(juce::Font(16.0f, juce::Font::bold));
+    statusLabel.setColour(juce::Label::textColourId, juce::Colour(0xff00ff00));  // Lime green
 
-    // Wet Slider (horizontal)
+    addAndMakeVisible(trackTitleLabel);
+    trackTitleLabel.setText("", juce::dontSendNotification);
+    trackTitleLabel.setJustificationType(juce::Justification::centred);
+    trackTitleLabel.setFont(juce::Font(14.0f));
+    trackTitleLabel.setColour(juce::Label::textColourId, juce::Colours::lightgrey);
+
+    // Reverb Slider
     addAndMakeVisible(wetSlider);
     wetSlider.setRange(0.0, 1.0, 0.01);
     wetSlider.setValue(1.0);
     wetSlider.setSliderStyle(juce::Slider::LinearHorizontal);
-    wetSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 80, 20);
+    wetSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 80, 26);
+    wetSlider.setTextValueSuffix("");
+    wetSlider.textFromValueFunction = [](double v) { return juce::String(static_cast<int>(v * 100)); };
     wetSlider.addListener(this);
 
     addAndMakeVisible(wetLabel);
-    wetLabel.setText("Dry / Wet", juce::dontSendNotification);
+    wetLabel.setText("Reverb", juce::dontSendNotification);
     wetLabel.attachToComponent(&wetSlider, true);
 
-    addAndMakeVisible(wetValueLabel);
-    wetValueLabel.setText("100% Wet", juce::dontSendNotification);
-
-    // Volume Slider (horizontal)
+    // Master Volume Slider
     addAndMakeVisible(volumeSlider);
     volumeSlider.setRange(0.0, 2.0, 0.01);
     volumeSlider.setValue(1.0);
     volumeSlider.setSliderStyle(juce::Slider::LinearHorizontal);
-    volumeSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 80, 20);
+    volumeSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 80, 26);
+    volumeSlider.setTextValueSuffix("");
+    volumeSlider.textFromValueFunction = [](double v) { return juce::String(static_cast<int>(v * 100)); };
     volumeSlider.addListener(this);
 
     addAndMakeVisible(volumeLabel);
     volumeLabel.setText("Master Volume", juce::dontSendNotification);
     volumeLabel.attachToComponent(&volumeSlider, true);
 
-    addAndMakeVisible(volumeValueLabel);
-    volumeValueLabel.setText("100%", juce::dontSendNotification);
+    // Seek bar
+    addAndMakeVisible(positionSlider);
+    positionSlider.setRange(0.0, 1.0);
+    positionSlider.setSliderStyle(juce::Slider::LinearHorizontal);
+    positionSlider.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
+    positionSlider.setMouseDragSensitivity(400);
+    positionSlider.setVelocityBasedMode(false);
+    positionSlider.addListener(this);
 
-    setSize(800, 500);
+    addAndMakeVisible(positionLabel);
+    positionLabel.setText("0:00 / 0:00", juce::dontSendNotification);
+    positionLabel.setJustificationType(juce::Justification::right);
+
+    // ASIO/WASAPI — PRIORITY #1 — LARGE, VISIBLE, FIRST
+    addAndMakeVisible(exclusiveToggle);
+    exclusiveToggle.setButtonText("Exclusive Mode (ASIO/WASAPI)");
+    exclusiveToggle.setToggleState(false, juce::dontSendNotification);
+    exclusiveToggle.changeWidthToFitText();
+    exclusiveToggle.setSize(exclusiveToggle.getWidth() + 250, 90);  // HUGE, DOMINANT
+    exclusiveToggle.onClick = [this] { applyDeviceType(); };
+
+    // Buffer size selector — larger, readable
+    addAndMakeVisible(bufferSizeLabel);
+    bufferSizeLabel.setText("Buffer Size", juce::dontSendNotification);
+    bufferSizeLabel.setJustificationType(juce::Justification::right);
+    bufferSizeLabel.setFont(juce::Font(16.0f));
+
+    addAndMakeVisible(bufferSizeBox);
+    bufferSizeBox.addItem("64 samples (ultra-low latency)", 64);
+    bufferSizeBox.addItem("128 samples (low latency)", 128);
+    bufferSizeBox.addItem("256 samples (balanced)", 256);
+    bufferSizeBox.addItem("512 samples (stable)", 512);
+    bufferSizeBox.setSelectedId(256);
+    bufferSizeBox.onChange = [this] { applyBufferSize(); };
+    bufferSizeBox.setSize(300, 50);  // Larger, readable
+
+    setSize(1024, 900);  // Perfect startup size
+
     setAudioChannels(0, 2);
+    deviceManager.initialise(0, 2, nullptr, false);
 }
 
 MainComponent::~MainComponent()
@@ -86,6 +135,8 @@ void MainComponent::prepareToPlay(int samplesPerBlockExpected, double sampleRate
 {
     transportSource.prepareToPlay(samplesPerBlockExpected, sampleRate);
     convolutionEngine.prepare(sampleRate, samplesPerBlockExpected);
+
+    applyBufferSize();
 }
 
 void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferToFill)
@@ -106,30 +157,18 @@ void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& buffer
         float* floatL = bufferToFill.buffer->getWritePointer(0, start);
         float* floatR = bufferToFill.buffer->getWritePointer(1, start);
 
-        // Preserve dry signal
-        std::vector<float> dryL(floatL, floatL + numSamples);
-        std::vector<float> dryR(floatR, floatR + numSamples);
+        convolutionEngine.processBlock(floatL, floatR, numSamples);
 
-        // Apply convolution to wet copy
-        std::vector<float> wetL(numSamples);
-        std::vector<float> wetR(numSamples);
-        std::memcpy(wetL.data(), floatL, numSamples * sizeof(float));
-        std::memcpy(wetR.data(), floatR, numSamples * sizeof(float));
-
-        convolutionEngine.processBlock(wetL.data(), wetR.data(), numSamples);
-
-        // Mix dry + wet + clamp + tanh
         for (int i = 0; i < numSamples; ++i)
         {
-            float mixedL = dryL[i] * (1.0f - wetMix) + wetL[i] * wetMix;
-            float mixedR = dryR[i] * (1.0f - wetMix) + wetR[i] * wetMix;
+            float wetL = floatL[i];
+            float wetR = floatR[i];
+
+            float mixedL = (floatL[i] * (1.0f - wetMix)) + (wetL * wetMix);
+            float mixedR = (floatR[i] * (1.0f - wetMix)) + (wetR * wetMix);
 
             mixedL *= masterVolume;
             mixedR *= masterVolume;
-
-            // Hard clamp before tanh
-            mixedL = juce::jlimit(-1.0f, 1.0f, mixedL);
-            mixedR = juce::jlimit(-1.0f, 1.0f, mixedR);
 
             mixedL = std::tanh(mixedL);
             mixedR = std::tanh(mixedR);
@@ -140,7 +179,6 @@ void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& buffer
     }
     else
     {
-        // Dry path
         float* floatL = bufferToFill.buffer->getWritePointer(0);
         float* floatR = bufferToFill.buffer->getWritePointer(1);
 
@@ -148,13 +186,14 @@ void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& buffer
         {
             floatL[i] *= masterVolume;
             floatR[i] *= masterVolume;
-
-            floatL[i] = juce::jlimit(-1.0f, 1.0f, floatL[i]);
-            floatR[i] = juce::jlimit(-1.0f, 1.0f, floatR[i]);
-
             floatL[i] = std::tanh(floatL[i]);
             floatR[i] = std::tanh(floatR[i]);
         }
+    }
+
+    if (transportSource.isPlaying())
+    {
+        updatePositionSlider();
     }
 }
 
@@ -171,34 +210,60 @@ void MainComponent::paint(juce::Graphics& g)
 
 void MainComponent::resized()
 {
-    auto area = getLocalBounds().reduced(40);
+    auto area = getLocalBounds().reduced(30);
 
-    auto buttonArea = area.removeFromLeft(200);
-    auto buttonHeight = 60;
+    // Top — Status + Track title
+    auto topRow = area.removeFromTop(60);
+    statusLabel.setBounds(topRow);
+    auto titleRow = area.removeFromTop(40);
+    trackTitleLabel.setBounds(titleRow);
 
-    loadButton.setBounds(buttonArea.removeFromTop(buttonHeight));
-    buttonArea.removeFromTop(20);
-    loadIRButton.setBounds(buttonArea.removeFromTop(buttonHeight));
-    buttonArea.removeFromTop(20);
-    playStopButton.setBounds(buttonArea.removeFromTop(buttonHeight));
+    area.removeFromTop(20);
 
-    area.removeFromLeft(40);
+    // Middle open space — 35% height — sacrificed for bottom
+    auto mainArea = area.removeFromTop(static_cast<int>(area.getHeight() * 0.35));
 
-    statusLabel.setBounds(area.removeFromTop(60));
+    // Bottom control bar — 65% height — MAX ROOM
+    auto controlArea = area.reduced(0, 30);
 
-    area.removeFromTop(40);
+    // Row 1 — Buttons
+    auto row1 = controlArea.removeFromTop(70);
+    auto buttonWidth = 150;
+    loadButton.setBounds(row1.removeFromLeft(buttonWidth).reduced(10));
+    row1.removeFromLeft(30);
+    loadIRButton.setBounds(row1.removeFromLeft(buttonWidth).reduced(10));
+    row1.removeFromLeft(30);
+    playStopButton.setBounds(row1.removeFromLeft(buttonWidth).reduced(10));
 
-    auto wetRow = area.removeFromTop(60);
-    wetLabel.setBounds(wetRow.removeFromLeft(150));
-    wetSlider.setBounds(wetRow.removeFromLeft(400));
-    wetValueLabel.setBounds(wetRow);
+    controlArea.removeFromTop(30);
 
-    area.removeFromTop(30);
+    // Row 2 — Progress bar
+    auto progressRow = controlArea.removeFromTop(60);
+    positionSlider.setBounds(progressRow.reduced(10, 0));
+    positionLabel.setBounds(progressRow.withWidth(200).withRightX(progressRow.getRight()));
 
-    auto volumeRow = area.removeFromTop(60);
-    volumeLabel.setBounds(volumeRow.removeFromLeft(150));
-    volumeSlider.setBounds(volumeRow.removeFromLeft(400));
-    volumeValueLabel.setBounds(volumeRow);
+    controlArea.removeFromTop(40);
+
+    // Row 3 — Reverb + Volume
+    auto sliderRow = controlArea.removeFromTop(90);
+    auto wetArea = sliderRow.removeFromLeft(460);
+    wetLabel.setBounds(wetArea.removeFromLeft(140).withTrimmedTop(10));
+    wetSlider.setBounds(wetArea.reduced(10, 0));
+
+    sliderRow.removeFromLeft(100);
+
+    auto volumeArea = sliderRow;
+    volumeLabel.setBounds(volumeArea.removeFromLeft(160).withTrimmedTop(10));
+    volumeSlider.setBounds(volumeArea.reduced(10, 0));
+
+    controlArea.removeFromTop(60);
+
+    // Row 4 — ASIO/WASAPI FIRST, LARGE, VISIBLE
+    auto optionsRow = controlArea.removeFromTop(130);  // TALL ROW
+    exclusiveToggle.setBounds(optionsRow.removeFromLeft(550).reduced(15));  // LEFT, DOMINANT
+    optionsRow.removeFromLeft(60);
+    bufferSizeLabel.setBounds(optionsRow.removeFromLeft(160));
+    bufferSizeBox.setBounds(optionsRow.removeFromLeft(300));
 }
 
 void MainComponent::changeListenerCallback(juce::ChangeBroadcaster* source)
@@ -206,6 +271,12 @@ void MainComponent::changeListenerCallback(juce::ChangeBroadcaster* source)
     if (source == &transportSource)
     {
         playStopButton.setButtonText(transportSource.isPlaying() ? "Stop" : "Play");
+
+        if (transportSource.hasStreamFinished())
+        {
+            updatePositionSlider();
+            clearConvolutionHistory();
+        }
     }
 }
 
@@ -214,13 +285,95 @@ void MainComponent::sliderValueChanged(juce::Slider* slider)
     if (slider == &wetSlider)
     {
         wetMix = static_cast<float>(wetSlider.getValue());
-        wetValueLabel.setText(juce::String(static_cast<int>(wetMix * 100)) + "% Wet", juce::dontSendNotification);
     }
     else if (slider == &volumeSlider)
     {
         masterVolume = static_cast<float>(volumeSlider.getValue());
-        volumeValueLabel.setText(juce::String(static_cast<int>(masterVolume * 100)) + "%", juce::dontSendNotification);
     }
+    else if (slider == &positionSlider)
+    {
+        if (transportSource.getLengthInSeconds() > 0.0)
+        {
+            double position = positionSlider.getValue() * transportSource.getLengthInSeconds();
+            transportSource.setPosition(position);
+            updatePositionSlider();
+        }
+    }
+}
+
+void MainComponent::updatePositionSlider()
+{
+    double current = transportSource.getCurrentPosition();
+    double total = transportSource.getLengthInSeconds();
+
+    if (total > 0.0)
+    {
+        positionSlider.setValue(current / total, juce::dontSendNotification);
+
+        int currentMins = (int)(current / 60);
+        int currentSecs = (int)current % 60;
+        int totalMins = (int)(total / 60);
+        int totalSecs = (int)total % 60;
+
+        positionLabel.setText(juce::String::formatted("%02d:%02d / %02d:%02d",
+                                                      currentMins, currentSecs, totalMins, totalSecs),
+                              juce::dontSendNotification);
+    }
+    else
+    {
+        positionLabel.setText("0:00 / 0:00", juce::dontSendNotification);
+    }
+}
+
+void MainComponent::clearConvolutionHistory()
+{
+    convolutionEngine.reset();
+}
+
+void MainComponent::applyDeviceType()
+{
+    useExclusiveMode = exclusiveToggle.getToggleState();
+
+    juce::AudioDeviceManager::AudioDeviceSetup setup = deviceManager.getAudioDeviceSetup();
+    setup.useDefaultInputChannels = true;
+    setup.useDefaultOutputChannels = true;
+
+    if (useExclusiveMode)
+    {
+        bool hasASIO = false;
+        for (auto* type : deviceManager.getAvailableDeviceTypes())
+        {
+            if (type->getTypeName() == "ASIO")
+            {
+                hasASIO = true;
+                break;
+            }
+        }
+
+        if (hasASIO)
+        {
+            deviceManager.setCurrentAudioDeviceType("ASIO", true);
+        }
+        else
+        {
+            deviceManager.setCurrentAudioDeviceType("Windows Audio", true);
+        }
+
+        deviceManager.initialise(0, 2, nullptr, true, juce::String(), &setup);
+    }
+    else
+    {
+        deviceManager.initialise(0, 2, nullptr, false);
+    }
+}
+
+void MainComponent::applyBufferSize()
+{
+    int selectedSize = bufferSizeBox.getSelectedId();
+
+    juce::AudioDeviceManager::AudioDeviceSetup setup = deviceManager.getAudioDeviceSetup();
+    setup.bufferSize = selectedSize;
+    deviceManager.setAudioDeviceSetup(setup, true);
 }
 
 void MainComponent::loadFile()
@@ -240,6 +393,9 @@ void MainComponent::loadFile()
                                          readerSource = std::move(newSource);
                                          playStopButton.setEnabled(true);
                                          playStopButton.setButtonText("Play");
+                                         updatePositionSlider();
+
+                                         trackTitleLabel.setText("Track: " + file.getFileNameWithoutExtension(), juce::dontSendNotification);
                                      }
                                  }
                              });
@@ -255,7 +411,7 @@ void MainComponent::loadImpulseResponse()
                                  if (file != juce::File{})
                                  {
                                      convolutionEngine.loadIR(file);
-                                     statusLabel.setText("IR: " + file.getFileName() + " – VOID Eternal Active", juce::dontSendNotification);
+                                     statusLabel.setText("IR: " + file.getFileName() + " – Q64 Eternal Void Active", juce::dontSendNotification);
                                  }
                              });
 }

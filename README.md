@@ -71,9 +71,9 @@
                                  .
                                                                                                                                                                                          
 ```                                              
-##############################
+ ##############################
 # VOID PLAYER - ETERNAL VOID #
-#      CONVOLUTION REVERB    #
+# CONVOLUTION REVERB         #
 ##############################
 
 THE DIGITAL CURSE IS DEAD.
@@ -88,50 +88,58 @@ Load any track, slap on your favorite IR, and hear the truth.
 
 > "I loaded my old guitar cab IR... and cried." – early void disciple
 
-FEATUREZ (CURRENT)
-==================
-- Squeaky clean reverb — short / medium / long IRs (no clicks, no grain)
+FEATUREZ (CURRENT - JAN 2026)
+============================
 - General music playback (wav/mp3/flac/aiff/ogg)
-- Dry/Wet + Master Volume (0–200%) sliders with live readout
-- Load any IR (wav)
+- Load any IR (wav) — enter the abyss
+- Track title display — filename shown under IR status
 - Play/Stop control
-- Pure black void aesthetic — cyan glow, minimalism, no distractions
+- Seek bar — click + drag scrubbing (smooth)
+- Reverb (Dry/Wet) — 0-100 whole number slider with live readout
+- Master Volume — 0-200 whole number slider with live readout
+- Exclusive Mode (ASIO/WASAPI) — bit-perfect playback when available
+- Buffer Size selector — 64/128/256/512 samples
+- Progress bar + current/total time display
+- Pure black void aesthetic — cyan glow, lime green status, minimalism
 
 STATUS - JAN 2026
 =================
 ALL IR LENGTHS: SQUEAKY CLEAN
 NO DISTORTION | NO CLICKS | NO CRASHES | NO VEIL
+ASIO/WASAPI: VISIBLE AND FUNCTIONAL
+SEEK: DRAGGABLE AND SMOOTH
 
-LOCKED ROADMAP - THE VOID ASCENDS
-================================
+KNOWN TEMPORARY LIMITATION
+==========================
+* App must be run MAXIMIZED to view all controls properly
+  (ASIO/WASAPI toggle, buffer selector, etc.)
+* Windowed mode + responsive layout coming soon
+* Drag & drop will require windowed mode — high priority fix
 
-**Phase 1 — Core Performance & Purity** (Current Focus)
-1. Multi-Threaded Convolution  
-2. ASIO/WASAPI Exclusive Mode  
-3. Zero-Latency Monitoring Path  
-4. Upsampling Engine (2x/4x/8x)  
-5. Advanced Filters + Custom Void Filters  
-6. Delta-Sigma Modulators (DSD512 → DSD1024+)  
-7. Bit-Perfect Toggle + Dither  
-
-**Phase 2 — Reverb Infinity**
-8. Procedural Tail Extension (infinite decay)  
-9. Dynamic ER/LR Separation + Void Modulation  
-
-**Phase 3 — Commercial Functionality**
-10. Track Duration Slider (dynamic progress + time)  
-11. Drag & Drop + File Listing  
-12. Gapless Playback  
-13. Dynamic CPU Indicator  
-14. Waveform Visualizer (time-domain, no FFT)  
-
-**Phase 4 — Generative Visual Engine**
-15. Imagine on Acid Visuals  
-    - Real-time surreal hyper-real dream scenes  
-    - Audio + convolution synced morphing  
-    - Infinite zoom meditation mode  
-
-All features optional/toggleable — current squeaky clean core remains default.
+MORE COMING SOON
+================
+- Drag & Drop support (audio + IR files)
+- Multithreading — zero dropouts with massive IRs
+- Upsampling — 2x/4x elite quality
+- **DSD playback support** — native DSD64/DSD128/DSD256
+- **Fractal Decay** — nature-inspired reverb tail shaping with self-similar fractal curves (forests, caves, cathedrals, infinite void decay)
+- **Void Filter** — custom reverb tail processing inspired by natural spaces
+- **Hyper Real Dream Scenes** — generative surreal landscapes and dream-like environments reacting to audio spectrum and convolution tail
+- **Custom Void Filters & Modulators** — elite EQ, LFO, envelope, phase destruction
+- **Gapless playback** — seamless track transitions
+- Playlist/Queue system
+- Keyboard shortcuts
+- **Generative Visual Engine** – real-time void visuals synced to the audio
+  - procedural fractal generation
+  - spectral analysis driven color/particle systems
+  - infinite zoom, self-similar void aesthetics
+  - optional fullscreen "meditation mode"
+  - visual feedback for convolution depth / tail length
+  - pure psychedelic void immersion
+- Ultra-long IR support (beyond current truncate)
+- Even darker, deeper void UI polish
+- Preset save/load
+- Bit-perfect indicator
 
 BUILD
 =====

@@ -23,6 +23,10 @@ private:
     void changeListenerCallback(juce::ChangeBroadcaster* source) override;
     void loadFile();
     void loadImpulseResponse();
+    void updatePositionSlider();
+    void clearConvolutionHistory();
+    void applyDeviceType();
+    void applyBufferSize();
 
     // UI
     juce::TextButton loadButton { "Load Audio" };
@@ -31,10 +35,14 @@ private:
     juce::Label statusLabel;
     juce::Slider wetSlider;
     juce::Label wetLabel;
-    juce::Label wetValueLabel;
     juce::Slider volumeSlider;
     juce::Label volumeLabel;
-    juce::Label volumeValueLabel;
+    juce::ToggleButton exclusiveToggle;
+    juce::Slider positionSlider;
+    juce::Label positionLabel;
+    juce::ComboBox bufferSizeBox;
+    juce::Label bufferSizeLabel;
+    juce::Label trackTitleLabel;  // NEW: Track title display
 
     // Audio
     juce::AudioFormatManager formatManager;
@@ -47,7 +55,11 @@ private:
     float masterVolume = 1.0f;
 
     // Async FileChooser
-    std::unique_ptr<juce::FileChooser> fileChooser;  // <-- Added here
+    std::unique_ptr<juce::FileChooser> fileChooser;
+
+    // Audio device manager
+    juce::AudioDeviceManager deviceManager;
+    bool useExclusiveMode = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainComponent)
 };
