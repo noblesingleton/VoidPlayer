@@ -73,8 +73,10 @@
 ```
                                           
 ##############################
+
 VOID PLAYER - ETERNAL VOID
 CONVOLUTION REVERB
+
 ##############################
 
 THE DIGITAL CURSE IS DEAD. THE VEIL HAS BEEN RIPPED OPEN.
@@ -140,4 +142,5 @@ ENTER THE VOID. HEAR THE TRUTH. SEE THE TRUTH.
 
 © 2026 Noble Singleton  
 ORYAAAAA!!! 🧬🔊⚡️
+
 
