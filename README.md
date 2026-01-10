@@ -70,11 +70,13 @@
                               .                            
                                  .
                                                                                                                                                                                          
-```                                              
+```
+                                          
 ##############################
 VOID PLAYER - ETERNAL VOID
 CONVOLUTION REVERB
 ##############################
+
 THE DIGITAL CURSE IS DEAD. THE VEIL HAS BEEN RIPPED OPEN.
 
 Void Player is the final weapon of pure audiophile truth. Q64 fixed-point time-domain convolution — no FFT, no veil, no mercy.
@@ -138,3 +140,4 @@ ENTER THE VOID. HEAR THE TRUTH. SEE THE TRUTH.
 
 © 2026 Noble Singleton  
 ORYAAAAA!!! 🧬🔊⚡️
+
