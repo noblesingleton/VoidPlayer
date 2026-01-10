@@ -1,5 +1,6 @@
 #include "MainComponent.h"
 #include <cmath>
+#include <thread>
 
 MainComponent::MainComponent()
 {
@@ -48,7 +49,7 @@ MainComponent::MainComponent()
     statusLabel.setText("No IR loaded – Dry path active", juce::dontSendNotification);
     statusLabel.setJustificationType(juce::Justification::centred);
     statusLabel.setFont(juce::Font(16.0f, juce::Font::bold));
-    statusLabel.setColour(juce::Label::textColourId, juce::Colour(0xff00ff00)); // Lime green
+    statusLabel.setColour(juce::Label::textColourId, juce::Colour(0xff00ff00));
 
     addAndMakeVisible(trackTitleLabel);
     trackTitleLabel.setText("", juce::dontSendNotification);
@@ -56,7 +57,6 @@ MainComponent::MainComponent()
     trackTitleLabel.setFont(juce::Font(14.0f));
     trackTitleLabel.setColour(juce::Label::textColourId, juce::Colours::lightgrey);
 
-    // Reverb Slider
     addAndMakeVisible(wetSlider);
     wetSlider.setRange(0.0, 1.0, 0.01);
     wetSlider.setValue(1.0);
@@ -71,7 +71,6 @@ MainComponent::MainComponent()
     wetLabel.setJustificationType(juce::Justification::centred);
     wetLabel.setFont(juce::Font(16.0f, juce::Font::bold));
 
-    // Master Volume Slider
     addAndMakeVisible(volumeSlider);
     volumeSlider.setRange(0.0, 2.0, 0.01);
     volumeSlider.setValue(1.0);
@@ -86,7 +85,6 @@ MainComponent::MainComponent()
     volumeLabel.setJustificationType(juce::Justification::centred);
     volumeLabel.setFont(juce::Font(16.0f, juce::Font::bold));
 
-    // Seek bar
     addAndMakeVisible(positionSlider);
     positionSlider.setRange(0.0, 1.0);
     positionSlider.setSliderStyle(juce::Slider::LinearHorizontal);
@@ -99,15 +97,13 @@ MainComponent::MainComponent()
     positionLabel.setText("0:00 / 0:00", juce::dontSendNotification);
     positionLabel.setJustificationType(juce::Justification::right);
 
-    // ASIO/WASAPI — PRIORITY #1 — LARGE, VISIBLE, FIRST
     addAndMakeVisible(exclusiveToggle);
-    exclusiveToggle.setButtonText("Exclusive Mode (ASIO/WASAPI)");
+    exclusiveToggle.setButtonText("Exclusive Mode (Bit Perfect)");
     exclusiveToggle.setToggleState(false, juce::dontSendNotification);
     exclusiveToggle.changeWidthToFitText();
-    exclusiveToggle.setSize(exclusiveToggle.getWidth() + 250, 90); // HUGE, DOMINANT
+    exclusiveToggle.setSize(exclusiveToggle.getWidth() + 250, 90);
     exclusiveToggle.onClick = [this] { applyDeviceType(); };
 
-    // Buffer size selector — larger, readable
     addAndMakeVisible(bufferSizeLabel);
     bufferSizeLabel.setText("Buffer Size", juce::dontSendNotification);
     bufferSizeLabel.setJustificationType(juce::Justification::right);
@@ -120,11 +116,19 @@ MainComponent::MainComponent()
     bufferSizeBox.addItem("512 samples (stable)", 512);
     bufferSizeBox.setSelectedId(256);
     bufferSizeBox.onChange = [this] { applyBufferSize(); };
-    bufferSizeBox.setSize(300, 50); // Larger, readable
+    bufferSizeBox.setSize(300, 50);
 
-    setSize(1024, 900); // Perfect startup size
+    // Force full volume at start
+    masterVolume = 1.0f;
+    volumeSlider.setValue(1.0, juce::dontSendNotification);
+
+    // Critical: Open audio device and register callback
     setAudioChannels(0, 2);
-    deviceManager.initialise(0, 2, nullptr, false);
+
+    // Initialize active engine pointer
+    activeEngine.store(&convolutionEngine, std::memory_order_release);
+
+    setSize(1024, 900);
 }
 
 MainComponent::~MainComponent()
@@ -135,51 +139,53 @@ MainComponent::~MainComponent()
 void MainComponent::prepareToPlay(int samplesPerBlockExpected, double sampleRate)
 {
     transportSource.prepareToPlay(samplesPerBlockExpected, sampleRate);
-    convolutionEngine.prepare(sampleRate, samplesPerBlockExpected);
     applyBufferSize();
+
+    // Cache values for async IR loading
+    currentSampleRate = sampleRate;
+    currentBlockSize = samplesPerBlockExpected;
 }
 
 void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferToFill)
 {
+    // Swap to newly loaded engine if ready (non-blocking, 0 ms timeout)
+    if (pendingEngine && loadingFinished.wait(0))
+    {
+        // Release old engine if different from the initial one
+        auto* old = activeEngine.exchange(pendingEngine.release(), std::memory_order_release);
+        if (old != &convolutionEngine)
+            delete old; // clean up previous async-loaded engine
+
+        pendingEngine.reset(); // clear pending slot
+    }
+
     if (readerSource == nullptr)
     {
         bufferToFill.clearActiveBufferRegion();
         return;
     }
+
     transportSource.getNextAudioBlock(bufferToFill);
-    if (convolutionEngine.isReady())
+
+    // Apply master volume
+    for (int ch = 0; ch < bufferToFill.buffer->getNumChannels(); ++ch)
     {
-        const int numSamples = bufferToFill.numSamples;
-        const int start = bufferToFill.startSample;
-        float* floatL = bufferToFill.buffer->getWritePointer(0, start);
-        float* floatR = bufferToFill.buffer->getWritePointer(1, start);
-        convolutionEngine.processBlock(floatL, floatR, numSamples);
-        for (int i = 0; i < numSamples; ++i)
-        {
-            float wetL = floatL[i];
-            float wetR = floatR[i];
-            float mixedL = (floatL[i] * (1.0f - wetMix)) + (wetL * wetMix);
-            float mixedR = (floatR[i] * (1.0f - wetMix)) + (wetR * wetMix);
-            mixedL *= masterVolume;
-            mixedR *= masterVolume;
-            mixedL = std::tanh(mixedL);
-            mixedR = std::tanh(mixedR);
-            floatL[i] = mixedL;
-            floatR[i] = mixedR;
-        }
-    }
-    else
-    {
-        float* floatL = bufferToFill.buffer->getWritePointer(0);
-        float* floatR = bufferToFill.buffer->getWritePointer(1);
+        auto* data = bufferToFill.buffer->getWritePointer(ch, bufferToFill.startSample);
         for (int i = 0; i < bufferToFill.numSamples; ++i)
         {
-            floatL[i] *= masterVolume;
-            floatR[i] *= masterVolume;
-            floatL[i] = std::tanh(floatL[i]);
-            floatR[i] = std::tanh(floatR[i]);
+            data[i] *= masterVolume;
         }
     }
+
+    // Apply convolution using current active engine
+    auto* engine = activeEngine.load(std::memory_order_acquire);
+    if (engine && engine->isReady())
+    {
+        engine->processBlock(bufferToFill.buffer->getWritePointer(0, bufferToFill.startSample),
+                             bufferToFill.buffer->getWritePointer(1, bufferToFill.startSample),
+                             bufferToFill.numSamples);
+    }
+
     if (transportSource.isPlaying())
     {
         updatePositionSlider();
@@ -189,7 +195,6 @@ void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& buffer
 void MainComponent::releaseResources()
 {
     transportSource.releaseResources();
-    convolutionEngine.reset();
 }
 
 void MainComponent::paint(juce::Graphics& g)
@@ -199,25 +204,22 @@ void MainComponent::paint(juce::Graphics& g)
 
 void MainComponent::resized()
 {
-    auto area = getLocalBounds().reduced(40); // Generous void padding
+    auto area = getLocalBounds().reduced(40);
 
     juce::FlexBox mainFlex;
     mainFlex.flexDirection   = juce::FlexBox::Direction::column;
-    mainFlex.flexWrap        = juce::FlexBox::Wrap::noWrap; // Clean player feel
+    mainFlex.flexWrap        = juce::FlexBox::Wrap::noWrap;
     mainFlex.justifyContent  = juce::FlexBox::JustifyContent::flexStart;
     mainFlex.alignItems      = juce::FlexBox::AlignItems::stretch;
 
-    // 1. Top fixed: Status + Track Title
     juce::FlexBox topSection;
     topSection.flexDirection = juce::FlexBox::Direction::column;
     topSection.items.add(juce::FlexItem(statusLabel).withHeight(50));
     topSection.items.add(juce::FlexItem(trackTitleLabel).withHeight(40));
     mainFlex.items.add(juce::FlexItem(topSection).withHeight(110));
 
-    // 2. Expanding center (room for future visuals)
     mainFlex.items.add(juce::FlexItem().withFlex(1.0f));
 
-    // 3. Playback buttons row (centered)
     juce::FlexBox buttonRow;
     buttonRow.flexDirection   = juce::FlexBox::Direction::row;
     buttonRow.justifyContent  = juce::FlexBox::JustifyContent::center;
@@ -227,7 +229,6 @@ void MainComponent::resized()
     buttonRow.items.add(juce::FlexItem(playStopButton).withWidth(160).withHeight(70));
     mainFlex.items.add(juce::FlexItem(buttonRow).withHeight(100));
 
-    // 4. Seek bar row
     juce::FlexBox seekRow;
     seekRow.flexDirection = juce::FlexBox::Direction::row;
     seekRow.alignItems    = juce::FlexBox::AlignItems::center;
@@ -235,15 +236,12 @@ void MainComponent::resized()
     seekRow.items.add(juce::FlexItem(positionLabel).withWidth(220).withMinHeight(60));
     mainFlex.items.add(juce::FlexItem(seekRow).withHeight(100));
 
-    // 5. Reverb label + slider (header above)
     mainFlex.items.add(juce::FlexItem(wetLabel).withHeight(30));
     mainFlex.items.add(juce::FlexItem(wetSlider).withHeight(80).withMinHeight(80));
 
-    // 6. Master volume label + slider (header above)
     mainFlex.items.add(juce::FlexItem(volumeLabel).withHeight(30));
     mainFlex.items.add(juce::FlexItem(volumeSlider).withHeight(80).withMinHeight(80));
 
-    // 7. Bottom device controls (always visible)
     juce::FlexBox bottomRow;
     bottomRow.flexDirection   = juce::FlexBox::Direction::row;
     bottomRow.justifyContent  = juce::FlexBox::JustifyContent::spaceBetween;
@@ -321,25 +319,11 @@ void MainComponent::applyDeviceType()
     juce::AudioDeviceManager::AudioDeviceSetup setup = deviceManager.getAudioDeviceSetup();
     setup.useDefaultInputChannels = true;
     setup.useDefaultOutputChannels = true;
+
+    deviceManager.setCurrentAudioDeviceType("Windows Audio", true);
+
     if (useExclusiveMode)
     {
-        bool hasASIO = false;
-        for (auto* type : deviceManager.getAvailableDeviceTypes())
-        {
-            if (type->getTypeName() == "ASIO")
-            {
-                hasASIO = true;
-                break;
-            }
-        }
-        if (hasASIO)
-        {
-            deviceManager.setCurrentAudioDeviceType("ASIO", true);
-        }
-        else
-        {
-            deviceManager.setCurrentAudioDeviceType("Windows Audio", true);
-        }
         deviceManager.initialise(0, 2, nullptr, true, juce::String(), &setup);
     }
     else
@@ -387,10 +371,33 @@ void MainComponent::loadImpulseResponse()
                              [this](const juce::FileChooser& fc)
                              {
                                  auto file = fc.getResult();
-                                 if (file != juce::File{})
+                                 if (file == juce::File{})
+                                     return;
+
+                                 // Show loading state immediately (safe on message thread)
+                                 statusLabel.setText("Loading IR... (background)", juce::dontSendNotification);
+
+                                 // Start background loading
+                                 std::thread([this, file]()
                                  {
-                                     convolutionEngine.loadIR(file);
-                                     statusLabel.setText("IR: " + file.getFileName() + " – Q64 Eternal Void Active", juce::dontSendNotification);
-                                 }
+                                     // Create new engine
+                                     auto newEngine = std::make_unique<VoidConvolutionEngine>();
+
+                                     // Prepare with current audio settings
+                                     newEngine->prepare(currentSampleRate, currentBlockSize);
+
+                                     // Load IR (this may take time for large files)
+                                     newEngine->loadIR(file);
+
+                                     // Store pending engine & signal completion
+                                     pendingEngine = std::move(newEngine);
+                                     loadingFinished.signal();
+
+                                     // Safe UI update on message thread
+                                     juce::MessageManager::callAsync([this, file]()
+                                     {
+                                         statusLabel.setText("IR: " + file.getFileName() + " – Q64 Eternal Void Active", juce::dontSendNotification);
+                                     });
+                                 }).detach();
                              });
 }
