@@ -48,7 +48,7 @@ MainComponent::MainComponent()
     statusLabel.setText("No IR loaded – Dry path active", juce::dontSendNotification);
     statusLabel.setJustificationType(juce::Justification::centred);
     statusLabel.setFont(juce::Font(16.0f, juce::Font::bold));
-    statusLabel.setColour(juce::Label::textColourId, juce::Colour(0xff00ff00));  // Lime green
+    statusLabel.setColour(juce::Label::textColourId, juce::Colour(0xff00ff00)); // Lime green
 
     addAndMakeVisible(trackTitleLabel);
     trackTitleLabel.setText("", juce::dontSendNotification);
@@ -67,8 +67,9 @@ MainComponent::MainComponent()
     wetSlider.addListener(this);
 
     addAndMakeVisible(wetLabel);
-    wetLabel.setText("Reverb", juce::dontSendNotification);
-    wetLabel.attachToComponent(&wetSlider, true);
+    wetLabel.setText("Reverb (%)", juce::dontSendNotification);
+    wetLabel.setJustificationType(juce::Justification::centred);
+    wetLabel.setFont(juce::Font(16.0f, juce::Font::bold));
 
     // Master Volume Slider
     addAndMakeVisible(volumeSlider);
@@ -81,8 +82,9 @@ MainComponent::MainComponent()
     volumeSlider.addListener(this);
 
     addAndMakeVisible(volumeLabel);
-    volumeLabel.setText("Master Volume", juce::dontSendNotification);
-    volumeLabel.attachToComponent(&volumeSlider, true);
+    volumeLabel.setText("Master Volume (%)", juce::dontSendNotification);
+    volumeLabel.setJustificationType(juce::Justification::centred);
+    volumeLabel.setFont(juce::Font(16.0f, juce::Font::bold));
 
     // Seek bar
     addAndMakeVisible(positionSlider);
@@ -102,7 +104,7 @@ MainComponent::MainComponent()
     exclusiveToggle.setButtonText("Exclusive Mode (ASIO/WASAPI)");
     exclusiveToggle.setToggleState(false, juce::dontSendNotification);
     exclusiveToggle.changeWidthToFitText();
-    exclusiveToggle.setSize(exclusiveToggle.getWidth() + 250, 90);  // HUGE, DOMINANT
+    exclusiveToggle.setSize(exclusiveToggle.getWidth() + 250, 90); // HUGE, DOMINANT
     exclusiveToggle.onClick = [this] { applyDeviceType(); };
 
     // Buffer size selector — larger, readable
@@ -118,10 +120,9 @@ MainComponent::MainComponent()
     bufferSizeBox.addItem("512 samples (stable)", 512);
     bufferSizeBox.setSelectedId(256);
     bufferSizeBox.onChange = [this] { applyBufferSize(); };
-    bufferSizeBox.setSize(300, 50);  // Larger, readable
+    bufferSizeBox.setSize(300, 50); // Larger, readable
 
-    setSize(1024, 900);  // Perfect startup size
-
+    setSize(1024, 900); // Perfect startup size
     setAudioChannels(0, 2);
     deviceManager.initialise(0, 2, nullptr, false);
 }
@@ -135,7 +136,6 @@ void MainComponent::prepareToPlay(int samplesPerBlockExpected, double sampleRate
 {
     transportSource.prepareToPlay(samplesPerBlockExpected, sampleRate);
     convolutionEngine.prepare(sampleRate, samplesPerBlockExpected);
-
     applyBufferSize();
 }
 
@@ -146,33 +146,24 @@ void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& buffer
         bufferToFill.clearActiveBufferRegion();
         return;
     }
-
     transportSource.getNextAudioBlock(bufferToFill);
-
     if (convolutionEngine.isReady())
     {
         const int numSamples = bufferToFill.numSamples;
         const int start = bufferToFill.startSample;
-
         float* floatL = bufferToFill.buffer->getWritePointer(0, start);
         float* floatR = bufferToFill.buffer->getWritePointer(1, start);
-
         convolutionEngine.processBlock(floatL, floatR, numSamples);
-
         for (int i = 0; i < numSamples; ++i)
         {
             float wetL = floatL[i];
             float wetR = floatR[i];
-
             float mixedL = (floatL[i] * (1.0f - wetMix)) + (wetL * wetMix);
             float mixedR = (floatR[i] * (1.0f - wetMix)) + (wetR * wetMix);
-
             mixedL *= masterVolume;
             mixedR *= masterVolume;
-
             mixedL = std::tanh(mixedL);
             mixedR = std::tanh(mixedR);
-
             floatL[i] = mixedL;
             floatR[i] = mixedR;
         }
@@ -181,7 +172,6 @@ void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& buffer
     {
         float* floatL = bufferToFill.buffer->getWritePointer(0);
         float* floatR = bufferToFill.buffer->getWritePointer(1);
-
         for (int i = 0; i < bufferToFill.numSamples; ++i)
         {
             floatL[i] *= masterVolume;
@@ -190,7 +180,6 @@ void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& buffer
             floatR[i] = std::tanh(floatR[i]);
         }
     }
-
     if (transportSource.isPlaying())
     {
         updatePositionSlider();
@@ -210,60 +199,60 @@ void MainComponent::paint(juce::Graphics& g)
 
 void MainComponent::resized()
 {
-    auto area = getLocalBounds().reduced(30);
+    auto area = getLocalBounds().reduced(40); // Generous void padding
 
-    // Top — Status + Track title
-    auto topRow = area.removeFromTop(60);
-    statusLabel.setBounds(topRow);
-    auto titleRow = area.removeFromTop(40);
-    trackTitleLabel.setBounds(titleRow);
+    juce::FlexBox mainFlex;
+    mainFlex.flexDirection   = juce::FlexBox::Direction::column;
+    mainFlex.flexWrap        = juce::FlexBox::Wrap::noWrap; // Clean player feel
+    mainFlex.justifyContent  = juce::FlexBox::JustifyContent::flexStart;
+    mainFlex.alignItems      = juce::FlexBox::AlignItems::stretch;
 
-    area.removeFromTop(20);
+    // 1. Top fixed: Status + Track Title
+    juce::FlexBox topSection;
+    topSection.flexDirection = juce::FlexBox::Direction::column;
+    topSection.items.add(juce::FlexItem(statusLabel).withHeight(50));
+    topSection.items.add(juce::FlexItem(trackTitleLabel).withHeight(40));
+    mainFlex.items.add(juce::FlexItem(topSection).withHeight(110));
 
-    // Middle open space — 35% height — sacrificed for bottom
-    auto mainArea = area.removeFromTop(static_cast<int>(area.getHeight() * 0.35));
+    // 2. Expanding center (room for future visuals)
+    mainFlex.items.add(juce::FlexItem().withFlex(1.0f));
 
-    // Bottom control bar — 65% height — MAX ROOM
-    auto controlArea = area.reduced(0, 30);
+    // 3. Playback buttons row (centered)
+    juce::FlexBox buttonRow;
+    buttonRow.flexDirection   = juce::FlexBox::Direction::row;
+    buttonRow.justifyContent  = juce::FlexBox::JustifyContent::center;
+    buttonRow.alignItems      = juce::FlexBox::AlignItems::center;
+    buttonRow.items.add(juce::FlexItem(loadButton).withWidth(160).withHeight(70));
+    buttonRow.items.add(juce::FlexItem(loadIRButton).withWidth(160).withHeight(70));
+    buttonRow.items.add(juce::FlexItem(playStopButton).withWidth(160).withHeight(70));
+    mainFlex.items.add(juce::FlexItem(buttonRow).withHeight(100));
 
-    // Row 1 — Buttons
-    auto row1 = controlArea.removeFromTop(70);
-    auto buttonWidth = 150;
-    loadButton.setBounds(row1.removeFromLeft(buttonWidth).reduced(10));
-    row1.removeFromLeft(30);
-    loadIRButton.setBounds(row1.removeFromLeft(buttonWidth).reduced(10));
-    row1.removeFromLeft(30);
-    playStopButton.setBounds(row1.removeFromLeft(buttonWidth).reduced(10));
+    // 4. Seek bar row
+    juce::FlexBox seekRow;
+    seekRow.flexDirection = juce::FlexBox::Direction::row;
+    seekRow.alignItems    = juce::FlexBox::AlignItems::center;
+    seekRow.items.add(juce::FlexItem(positionSlider).withFlex(1.0f).withMinHeight(60));
+    seekRow.items.add(juce::FlexItem(positionLabel).withWidth(220).withMinHeight(60));
+    mainFlex.items.add(juce::FlexItem(seekRow).withHeight(100));
 
-    controlArea.removeFromTop(30);
+    // 5. Reverb label + slider (header above)
+    mainFlex.items.add(juce::FlexItem(wetLabel).withHeight(30));
+    mainFlex.items.add(juce::FlexItem(wetSlider).withHeight(80).withMinHeight(80));
 
-    // Row 2 — Progress bar
-    auto progressRow = controlArea.removeFromTop(60);
-    positionSlider.setBounds(progressRow.reduced(10, 0));
-    positionLabel.setBounds(progressRow.withWidth(200).withRightX(progressRow.getRight()));
+    // 6. Master volume label + slider (header above)
+    mainFlex.items.add(juce::FlexItem(volumeLabel).withHeight(30));
+    mainFlex.items.add(juce::FlexItem(volumeSlider).withHeight(80).withMinHeight(80));
 
-    controlArea.removeFromTop(40);
+    // 7. Bottom device controls (always visible)
+    juce::FlexBox bottomRow;
+    bottomRow.flexDirection   = juce::FlexBox::Direction::row;
+    bottomRow.justifyContent  = juce::FlexBox::JustifyContent::spaceBetween;
+    bottomRow.alignItems      = juce::FlexBox::AlignItems::center;
+    bottomRow.items.add(juce::FlexItem(exclusiveToggle).withMinWidth(500).withHeight(120));
+    bottomRow.items.add(juce::FlexItem(bufferSizeBox).withMinWidth(350).withHeight(70));
+    mainFlex.items.add(juce::FlexItem(bottomRow).withHeight(160));
 
-    // Row 3 — Reverb + Volume
-    auto sliderRow = controlArea.removeFromTop(90);
-    auto wetArea = sliderRow.removeFromLeft(460);
-    wetLabel.setBounds(wetArea.removeFromLeft(140).withTrimmedTop(10));
-    wetSlider.setBounds(wetArea.reduced(10, 0));
-
-    sliderRow.removeFromLeft(100);
-
-    auto volumeArea = sliderRow;
-    volumeLabel.setBounds(volumeArea.removeFromLeft(160).withTrimmedTop(10));
-    volumeSlider.setBounds(volumeArea.reduced(10, 0));
-
-    controlArea.removeFromTop(60);
-
-    // Row 4 — ASIO/WASAPI FIRST, LARGE, VISIBLE
-    auto optionsRow = controlArea.removeFromTop(130);  // TALL ROW
-    exclusiveToggle.setBounds(optionsRow.removeFromLeft(550).reduced(15));  // LEFT, DOMINANT
-    optionsRow.removeFromLeft(60);
-    bufferSizeLabel.setBounds(optionsRow.removeFromLeft(160));
-    bufferSizeBox.setBounds(optionsRow.removeFromLeft(300));
+    mainFlex.performLayout(area.toFloat());
 }
 
 void MainComponent::changeListenerCallback(juce::ChangeBroadcaster* source)
@@ -271,7 +260,6 @@ void MainComponent::changeListenerCallback(juce::ChangeBroadcaster* source)
     if (source == &transportSource)
     {
         playStopButton.setButtonText(transportSource.isPlaying() ? "Stop" : "Play");
-
         if (transportSource.hasStreamFinished())
         {
             updatePositionSlider();
@@ -305,16 +293,13 @@ void MainComponent::updatePositionSlider()
 {
     double current = transportSource.getCurrentPosition();
     double total = transportSource.getLengthInSeconds();
-
     if (total > 0.0)
     {
         positionSlider.setValue(current / total, juce::dontSendNotification);
-
         int currentMins = (int)(current / 60);
         int currentSecs = (int)current % 60;
         int totalMins = (int)(total / 60);
         int totalSecs = (int)total % 60;
-
         positionLabel.setText(juce::String::formatted("%02d:%02d / %02d:%02d",
                                                       currentMins, currentSecs, totalMins, totalSecs),
                               juce::dontSendNotification);
@@ -333,11 +318,9 @@ void MainComponent::clearConvolutionHistory()
 void MainComponent::applyDeviceType()
 {
     useExclusiveMode = exclusiveToggle.getToggleState();
-
     juce::AudioDeviceManager::AudioDeviceSetup setup = deviceManager.getAudioDeviceSetup();
     setup.useDefaultInputChannels = true;
     setup.useDefaultOutputChannels = true;
-
     if (useExclusiveMode)
     {
         bool hasASIO = false;
@@ -349,7 +332,6 @@ void MainComponent::applyDeviceType()
                 break;
             }
         }
-
         if (hasASIO)
         {
             deviceManager.setCurrentAudioDeviceType("ASIO", true);
@@ -358,7 +340,6 @@ void MainComponent::applyDeviceType()
         {
             deviceManager.setCurrentAudioDeviceType("Windows Audio", true);
         }
-
         deviceManager.initialise(0, 2, nullptr, true, juce::String(), &setup);
     }
     else
@@ -370,7 +351,6 @@ void MainComponent::applyDeviceType()
 void MainComponent::applyBufferSize()
 {
     int selectedSize = bufferSizeBox.getSelectedId();
-
     juce::AudioDeviceManager::AudioDeviceSetup setup = deviceManager.getAudioDeviceSetup();
     setup.bufferSize = selectedSize;
     deviceManager.setAudioDeviceSetup(setup, true);
@@ -394,7 +374,6 @@ void MainComponent::loadFile()
                                          playStopButton.setEnabled(true);
                                          playStopButton.setButtonText("Play");
                                          updatePositionSlider();
-
                                          trackTitleLabel.setText("Track: " + file.getFileNameWithoutExtension(), juce::dontSendNotification);
                                      }
                                  }

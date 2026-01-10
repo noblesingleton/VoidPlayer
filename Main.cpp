@@ -6,18 +6,17 @@ class VoidPlayerApplication : public juce::JUCEApplication
 public:
     VoidPlayerApplication() {}
 
-    const juce::String getApplicationName() override { return ProjectInfo::projectName; }
-    const juce::String getApplicationVersion() override { return ProjectInfo::versionString; }
+    const juce::String getApplicationName() override       { return ProjectInfo::projectName; }
+    const juce::String getApplicationVersion() override    { return ProjectInfo::versionString; }
 
-    void initialise (const juce::String& commandLine) override
+    void initialise (const juce::String&) override
     {
-        // Create the main window
         mainWindow = std::make_unique<MainWindow> (getApplicationName());
     }
 
     void shutdown() override
     {
-        mainWindow = nullptr;  // This is automatically deleted when the window is closed
+        mainWindow = nullptr;
     }
 
     void systemRequestedQuit() override
@@ -29,15 +28,21 @@ private:
     class MainWindow : public juce::DocumentWindow
     {
     public:
-        MainWindow (juce::String name) : DocumentWindow (name,
-                                                         juce::Colours::black,
-                                                         DocumentWindow::allButtons)
+        MainWindow (juce::String name)
+            : DocumentWindow (name,
+                              juce::Colours::black,
+                              DocumentWindow::allButtons)
         {
             setContentOwned (new MainComponent(), true);
             setUsingNativeTitleBar (true);
-            centreWithSize (800, 600);
+
+            // === WINDOWED + RESPONSIVE ENABLED ===
+            setResizable (true, true);                  // Allow resizing with grip
+            setResizeLimits (900, 700, 3840, 2160);     // Min size to fit controls, max 4K
+
+            centreWithSize (1280, 900);                 // Start larger & centered
+
             setVisible (true);
-            setResizable (true, true);
         }
 
         void closeButtonPressed() override
