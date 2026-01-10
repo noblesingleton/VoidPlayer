@@ -1,7 +1,8 @@
+// MainComponent.h
 #pragma once
 
 #include <JuceHeader.h>
-#include "VoidConvolutionEngine.h"  // Make sure this header exists
+#include "VoidConvolutionEngine.h"
 
 class MainComponent : public juce::AudioAppComponent,
                       public juce::ChangeListener,
@@ -43,19 +44,33 @@ private:
     juce::Label bufferSizeLabel       { "Buffer Size" };
     juce::ComboBox bufferSizeBox;
 
-    float wetMix = 1.0f;
-    float masterVolume = 1.0f;
-    bool useExclusiveMode = false;
-    std::unique_ptr<juce::FileChooser> fileChooser;
-
-    // Async IR loading
+    // ───────────────────────────────────────────────────────────────
+    //  Existing async IR loading
+    // ───────────────────────────────────────────────────────────────
     std::atomic<VoidConvolutionEngine*> activeEngine { &convolutionEngine };
     std::unique_ptr<VoidConvolutionEngine> pendingEngine;
     juce::WaitableEvent loadingFinished;
 
-    // Cached from prepareToPlay for async prepare
+    // ───────────────────────────────────────────────────────────────
+    //  NEW: Upsampling support
+    // ───────────────────────────────────────────────────────────────
+    std::atomic<VoidConvolutionEngine*> upsampledEngine { nullptr };
+    std::unique_ptr<VoidConvolutionEngine> pendingUpsampledEngine;
+    juce::WaitableEvent upsamplingFinished;
+    int currentUpsamplingFactor = 1; // 1 = off, 2/4/8/16 = active
+
+    // Cached audio settings for background preparation
     double currentSampleRate = 44100.0;
     int currentBlockSize = 512;
+
+    // UI for upsampling
+    juce::Label upsamplingLabel { "Upsampling" };
+    juce::ComboBox upsamplingBox;
+
+    float wetMix = 1.0f;
+    float masterVolume = 1.0f;
+    bool useExclusiveMode = false;
+    std::unique_ptr<juce::FileChooser> fileChooser;
 
     void applyDeviceType();
     void applyBufferSize();
@@ -63,6 +78,11 @@ private:
     void loadImpulseResponse();
     void clearConvolutionHistory();
     void updatePositionSlider();
+
+    // ───────────────────────────────────────────────────────────────
+    //  NEW: Upsampling preparation
+    // ───────────────────────────────────────────────────────────────
+    void startUpsamplingPrep();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };

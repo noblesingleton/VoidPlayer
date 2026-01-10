@@ -2,6 +2,54 @@
 #include <cmath>
 #include <thread>
 
+// Simple linear interpolation for block resampling (used in audio thread)
+void linearResample(const juce::AudioBuffer<float>& src, juce::AudioBuffer<float>& dst, double ratio)
+{
+    const int srcLen = src.getNumSamples();
+    const int dstLen = dst.getNumSamples();
+    const int numCh = src.getNumChannels();
+
+    for (int ch = 0; ch < numCh; ++ch)
+    {
+        auto* srcPtr = src.getReadPointer(ch);
+        auto* dstPtr = dst.getWritePointer(ch);
+
+        for (int i = 0; i < dstLen; ++i)
+        {
+            double pos = static_cast<double>(i) / ratio;
+            int idx = static_cast<int>(pos);
+            double frac = pos - idx;
+
+            if (idx + 1 < srcLen)
+            {
+                dstPtr[i] = static_cast<float>(srcPtr[idx] * (1.0 - frac) + srcPtr[idx + 1] * frac);
+            }
+            else
+            {
+                dstPtr[i] = srcPtr[idx];
+            }
+        }
+    }
+}
+
+// Manual IR resampling using linear interpolation (background thread)
+// Defined at the top so it's visible in startUpsamplingPrep()
+juce::AudioBuffer<float> resampleIR(const juce::AudioBuffer<float>& originalIR,
+                                    double originalRate,
+                                    double targetRate)
+{
+    if (originalIR.getNumSamples() == 0 || originalRate == targetRate)
+        return originalIR;
+
+    juce::AudioBuffer<float> resampled;
+    int newNumSamples = static_cast<int>(originalIR.getNumSamples() * (targetRate / originalRate) + 0.5);
+    resampled.setSize(originalIR.getNumChannels(), newNumSamples);
+
+    linearResample(originalIR, resampled, targetRate / originalRate);
+
+    return resampled;
+}
+
 MainComponent::MainComponent()
 {
     formatManager.registerBasicFormats();
@@ -118,6 +166,20 @@ MainComponent::MainComponent()
     bufferSizeBox.onChange = [this] { applyBufferSize(); };
     bufferSizeBox.setSize(300, 50);
 
+    // Upsampling selector
+    addAndMakeVisible(upsamplingLabel);
+    upsamplingLabel.setText("Upsampling", juce::dontSendNotification);
+    upsamplingLabel.setJustificationType(juce::Justification::right);
+
+    addAndMakeVisible(upsamplingBox);
+    upsamplingBox.addItem("Off", 1);
+    upsamplingBox.addItem("2x", 2);
+    upsamplingBox.addItem("4x", 3);
+    upsamplingBox.addItem("8x", 4);
+    upsamplingBox.addItem("16x", 5);
+    upsamplingBox.setSelectedId(1); // Off by default
+    upsamplingBox.onChange = [this] { startUpsamplingPrep(); };
+
     // Force full volume at start
     masterVolume = 1.0f;
     volumeSlider.setValue(1.0, juce::dontSendNotification);
@@ -125,8 +187,9 @@ MainComponent::MainComponent()
     // Critical: Open audio device and register callback
     setAudioChannels(0, 2);
 
-    // Initialize active engine pointer
+    // Initialize active engines
     activeEngine.store(&convolutionEngine, std::memory_order_release);
+    upsampledEngine.store(nullptr, std::memory_order_release);
 
     setSize(1024, 900);
 }
@@ -141,22 +204,26 @@ void MainComponent::prepareToPlay(int samplesPerBlockExpected, double sampleRate
     transportSource.prepareToPlay(samplesPerBlockExpected, sampleRate);
     applyBufferSize();
 
-    // Cache values for async IR loading
     currentSampleRate = sampleRate;
     currentBlockSize = samplesPerBlockExpected;
 }
 
 void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferToFill)
 {
-    // Swap to newly loaded engine if ready (non-blocking, 0 ms timeout)
+    // Async IR swap (existing)
     if (pendingEngine && loadingFinished.wait(0))
     {
-        // Release old engine if different from the initial one
         auto* old = activeEngine.exchange(pendingEngine.release(), std::memory_order_release);
-        if (old != &convolutionEngine)
-            delete old; // clean up previous async-loaded engine
+        if (old != &convolutionEngine) delete old;
+        pendingEngine.reset();
+    }
 
-        pendingEngine.reset(); // clear pending slot
+    // Upsampling engine swap
+    if (pendingUpsampledEngine && upsamplingFinished.wait(0))
+    {
+        auto* old = upsampledEngine.exchange(pendingUpsampledEngine.release(), std::memory_order_release);
+        delete old;
+        pendingUpsampledEngine.reset();
     }
 
     if (readerSource == nullptr)
@@ -177,13 +244,42 @@ void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& buffer
         }
     }
 
-    // Apply convolution using current active engine
-    auto* engine = activeEngine.load(std::memory_order_acquire);
-    if (engine && engine->isReady())
+    // Convolution engine selection with upsampling
+    auto* engine = upsampledEngine.load(std::memory_order_acquire);
+    if (engine && engine->isReady() && currentUpsamplingFactor > 1)
     {
-        engine->processBlock(bufferToFill.buffer->getWritePointer(0, bufferToFill.startSample),
-                             bufferToFill.buffer->getWritePointer(1, bufferToFill.startSample),
-                             bufferToFill.numSamples);
+        // 1. Upsample input block (simple linear)
+        juce::AudioBuffer<float> upBlock(bufferToFill.buffer->getNumChannels(),
+                                         bufferToFill.numSamples * currentUpsamplingFactor);
+        linearResample(*bufferToFill.buffer, upBlock, static_cast<double>(currentUpsamplingFactor));
+
+        // 2. Process with upsampled engine
+        engine->processBlock(upBlock.getWritePointer(0, 0),
+                             upBlock.getWritePointer(1, 0),
+                             upBlock.getNumSamples());
+
+        // 3. Downsample output block (simple linear)
+        juce::AudioBuffer<float> downBlock(bufferToFill.buffer->getNumChannels(), bufferToFill.numSamples);
+        linearResample(upBlock, downBlock, 1.0 / static_cast<double>(currentUpsamplingFactor));
+
+        // Copy downsampled result back to output buffer
+        for (int ch = 0; ch < bufferToFill.buffer->getNumChannels(); ++ch)
+        {
+            auto* src = downBlock.getReadPointer(ch);
+            auto* dst = bufferToFill.buffer->getWritePointer(ch, bufferToFill.startSample);
+            std::copy(src, src + bufferToFill.numSamples, dst);
+        }
+    }
+    else
+    {
+        // Normal path fallback
+        auto* normalEngine = activeEngine.load(std::memory_order_acquire);
+        if (normalEngine && normalEngine->isReady())
+        {
+            normalEngine->processBlock(bufferToFill.buffer->getWritePointer(0, bufferToFill.startSample),
+                                       bufferToFill.buffer->getWritePointer(1, bufferToFill.startSample),
+                                       bufferToFill.numSamples);
+        }
     }
 
     if (transportSource.isPlaying())
@@ -191,6 +287,10 @@ void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& buffer
         updatePositionSlider();
     }
 }
+
+// ───────────────────────────────────────────────────────────────
+//  Remaining functions (unchanged)
+// ───────────────────────────────────────────────────────────────
 
 void MainComponent::releaseResources()
 {
@@ -249,6 +349,14 @@ void MainComponent::resized()
     bottomRow.items.add(juce::FlexItem(exclusiveToggle).withMinWidth(500).withHeight(120));
     bottomRow.items.add(juce::FlexItem(bufferSizeBox).withMinWidth(350).withHeight(70));
     mainFlex.items.add(juce::FlexItem(bottomRow).withHeight(160));
+
+    // Upsampling row
+    juce::FlexBox upsamplingRow;
+    upsamplingRow.flexDirection = juce::FlexBox::Direction::row;
+    upsamplingRow.alignItems    = juce::FlexBox::AlignItems::center;
+    upsamplingRow.items.add(juce::FlexItem(upsamplingLabel).withWidth(150).withMinHeight(40));
+    upsamplingRow.items.add(juce::FlexItem(upsamplingBox).withFlex(1.0f).withMaxWidth(300).withMinHeight(40));
+    mainFlex.items.add(juce::FlexItem(upsamplingRow).withHeight(80).withMinHeight(80));
 
     mainFlex.performLayout(area.toFloat());
 }
@@ -311,6 +419,9 @@ void MainComponent::updatePositionSlider()
 void MainComponent::clearConvolutionHistory()
 {
     convolutionEngine.reset();
+    auto* up = upsampledEngine.exchange(nullptr, std::memory_order_release);
+    delete up;
+    pendingUpsampledEngine.reset();
 }
 
 void MainComponent::applyDeviceType()
@@ -374,30 +485,85 @@ void MainComponent::loadImpulseResponse()
                                  if (file == juce::File{})
                                      return;
 
-                                 // Show loading state immediately (safe on message thread)
                                  statusLabel.setText("Loading IR... (background)", juce::dontSendNotification);
 
-                                 // Start background loading
                                  std::thread([this, file]()
                                  {
-                                     // Create new engine
                                      auto newEngine = std::make_unique<VoidConvolutionEngine>();
-
-                                     // Prepare with current audio settings
                                      newEngine->prepare(currentSampleRate, currentBlockSize);
 
-                                     // Load IR (this may take time for large files)
-                                     newEngine->loadIR(file);
+                                     // Load the IR from file into buffer
+                                     auto* reader = formatManager.createReaderFor(file);
+                                     if (reader != nullptr)
+                                     {
+                                         juce::AudioBuffer<float> irBuffer(static_cast<int>(reader->numChannels), static_cast<int>(reader->lengthInSamples));
+                                         reader->read(&irBuffer, 0, static_cast<int>(reader->lengthInSamples), 0, true, true);
+                                         delete reader;
 
-                                     // Store pending engine & signal completion
+                                         newEngine->loadIR(irBuffer);
+                                     }
+
                                      pendingEngine = std::move(newEngine);
                                      loadingFinished.signal();
 
-                                     // Safe UI update on message thread
                                      juce::MessageManager::callAsync([this, file]()
                                      {
                                          statusLabel.setText("IR: " + file.getFileName() + " – Q64 Eternal Void Active", juce::dontSendNotification);
                                      });
                                  }).detach();
                              });
+}
+
+void MainComponent::startUpsamplingPrep()
+{
+    int selectedId = upsamplingBox.getSelectedId();
+    int factor = 1;
+
+    switch (selectedId)
+    {
+        case 1: factor = 1;   break; // Off
+        case 2: factor = 2;   break;
+        case 3: factor = 4;   break;
+        case 4: factor = 8;   break;
+        case 5: factor = 16;  break;
+        default: factor = 1;
+    }
+
+    currentUpsamplingFactor = factor;
+
+    if (factor == 1)
+    {
+        auto* old = upsampledEngine.exchange(nullptr, std::memory_order_release);
+        delete old;
+        pendingUpsampledEngine.reset();
+        statusLabel.setText("Upsampling Off", juce::dontSendNotification);
+        return;
+    }
+
+    statusLabel.setText("Preparing upsampling ×" + juce::String(factor) + "... (background)", juce::dontSendNotification);
+
+    std::thread([this, factor]()
+    {
+        auto newEngine = std::make_unique<VoidConvolutionEngine>();
+
+        // Prepare at upsampled rate
+        newEngine->prepare(currentSampleRate * factor, currentBlockSize * factor);
+
+        // Resample current IR to factor × rate (manual linear)
+        juce::AudioBuffer<float> upsampledIR = resampleIR(convolutionEngine.getCurrentIR(),
+                                                          currentSampleRate,
+                                                          currentSampleRate * factor);
+
+        // Load the upsampled IR into the new engine
+        newEngine->loadIR(upsampledIR);
+
+        // Signal completion
+        pendingUpsampledEngine = std::move(newEngine);
+        upsamplingFinished.signal();
+
+        juce::MessageManager::callAsync([this, factor]()
+        {
+            statusLabel.setText("Upsampling ×" + juce::String(factor) + " Active", juce::dontSendNotification);
+        });
+    }).detach();
 }

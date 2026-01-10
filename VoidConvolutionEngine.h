@@ -1,29 +1,26 @@
 #pragma once
 
-#include <JuceHeader.h>
+#include <juce_audio_processors/juce_audio_processors.h>
 
 class VoidConvolutionEngine
 {
 public:
-    VoidConvolutionEngine() { reset(); }
+    VoidConvolutionEngine();
+    ~VoidConvolutionEngine();
 
     void prepare(double sampleRate, int blockSize);
+    void loadIR(const juce::AudioBuffer<float>& ir);
+    void processBlock(float* left, float* right, int numSamples);
+    bool isReady() const;
     void reset();
-    void loadIR(const juce::File& irFile);
-    bool isReady() const { return !irQ64.empty(); }
-    void processBlock(float* left, float* right, int numSamples);  // <-- Changed to float*
+
+    // Declaration only — no body here!
+    const juce::AudioBuffer<float>& getCurrentIR() const;
 
 private:
-    void partitionIR();
-
-    double sampleRate = 48000.0;
-    int blockSize = 512;
-    int partitionSize = 512;
-
-    std::vector<int64_t> irQ64;
-    std::vector<int64_t> irPartitions;
-    std::vector<int64_t> inputHistoryL;
-    std::vector<int64_t> inputHistoryR;
-
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (VoidConvolutionEngine)
+    juce::AudioBuffer<float> currentIR;
+    double currentSampleRate{44100.0};
+    int currentBlockSize{512};
+    bool ready{false};
+    // Add your other private members (convolution state, kernels, etc.) here
 };
