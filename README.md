@@ -129,29 +129,39 @@ LAYOUT: RESPONSIVE — WORKS IN ANY WINDOW SIZE
 ASYNC LOADING: FULLY STABLE — LARGE IRs LOAD SMOOTHLY IN BACKGROUND  
 UPSAMPLING: LIVE AND AUDIBLE — 16x TAILS ARE ETERNAL
 
-## MORE COMING SOON
+## MORE COMING SOON (Planned Roadmap)
 
-* Drag & Drop support (files & folders)
-* Gapless album playback from folder selection
-* DSD playback support — native DSD64/DSD128/DSD256/DSD512/DSD1024
-* Fractal Decay — nature-inspired reverb tail shaping with self-similar fractal curves (forests, caves, cathedrals, infinite void decay)
-* Custom Void Filters & Modulators — elite EQ, LFO, envelope, phase destruction
-* Playlist/Queue system
-* Keyboard shortcuts
-* Generative Visual Engine – real-time void visuals synced to the audio
-  * Hyper Real Dream Scenes — generative surreal landscapes and dream-like environments reacting to audio spectrum and convolution tail
-    * procedural fractal generation
-    * spectral analysis driven color/particle systems
-    * infinite zoom, self-similar void aesthetics
-    * optional fullscreen "meditation mode"
-    * visual feedback for convolution depth / tail length
-    * pure psychedelic void immersion
-* Ultra-long IR support (beyond current truncate)
-* Even darker, deeper void UI polish
-* Preset save/load
-* Bit-perfect indicator
-* CPU Indicator
-* Latency Indicator
+**Immediate Focus: Aesthetics & Workflow**  
+* Playlist / Queue system  
+* Gapless album playback (from folder selection or playlist)  
+* Drag & Drop support (files & folders, multi-select)  
+* UI polish — darker void, enhanced cyan/lime glows, better responsiveness  
+* Simple visual feedback (spectrum/tail length indicators)
+
+**Next: Dry Path & Upsampling Purity**  
+* True integer passthrough (wet=0%, no processing)  
+* DC offset removal / high-pass on dry  
+* Bit-perfect monitoring/indicator  
+* Upsampling upgrades: raised-cosine → polyphase FIR (smoother tails, less aliasing)
+
+**After: Fractal Decay**  
+* Procedural FDN engine — nature-inspired self-similar infinite tails (forests, caves, cathedrals, pure void decay)  
+* Blend with current convolution for ultimate tail extension
+
+**Then: Generative Visual Engine**  
+* Real-time hyper-real psychedelic dream scenes synced to audio  
+* Procedural fractal/Mandelbrot zoom, breathing geometry, DMT/LSD-style entities, melting landscapes, impossible physics  
+* Endless self-creation — no repetition, driven by spectrum, tail depth, convolution intensity  
+* Fullscreen "meditation mode" — pure void immersion, no UI distractions
+
+**Lower Priority (Later)**  
+* Latency / ASIO support (WASAPI exclusive already bit-perfect & low-latency)  
+* DSD playback — native DSD64/DSD128/DSD256/DSD512/DSD1024 (special files/DACs)  
+* Ultra-long IR support (beyond current truncate)  
+* Custom Void Filters & Modulators — elite EQ, LFO, envelope, phase destruction  
+* Even darker, deeper void UI polish  
+* Preset save/load  
+* CPU / Latency indicators
 
 ## BUILD
 
