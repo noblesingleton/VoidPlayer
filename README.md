@@ -144,6 +144,11 @@ UPSAMPLING: LIVE AND AUDIBLE — 16x TAILS ARE ETERNAL
 * Bit-perfect monitoring/indicator  
 * Upsampling upgrades: raised-cosine → polyphase FIR (smoother tails, less aliasing)
 
+**Planned Multi-Threaded Partitioning Upgrade**  
+* Partitioned multi-threading for upsampling & convolution — split large IRs and audio blocks across multiple CPU cores  
+* Massive performance boost on high-core CPUs (especially at 16× upsampling)  
+* Even smoother real-time processing, zero stutter on massive tails, future-proof for 32×/64× if desired
+
 **After: Fractal Decay**  
 * Procedural FDN engine — nature-inspired self-similar infinite tails (forests, caves, cathedrals, pure void decay)  
 * Blend with current convolution for ultimate tail extension
