@@ -121,6 +121,8 @@ Load any track, slap on your favorite IR, and hear the truth.
 
 ### STATUS - JAN 10, 2026  
 **ALL IR LENGTHS: SQUEAKY CLEAN | NO DISTORTION | NO CLICKS | NO CRASHES | NO VEIL**  
+**FADE-OUTS: ABSOLUTE VOID BLACKNESS — squeaky clean silence, no zipper/crackle artifacts at the end**  
+**DRY PLAYBACK: Q2.30 FIXED-POINT VOLUME — pure integer precision on the direct signal, no float veil, full headroom**  
 ASIO/WASAPI: VISIBLE AND FUNCTIONAL (Exclusive toggle clearly "Bit Perfect")  
 SEEK: DRAGGABLE AND SMOOTH  
 LAYOUT: RESPONSIVE — WORKS IN ANY WINDOW SIZE  
