@@ -47,6 +47,7 @@ MainComponent::MainComponent()
 {
     formatManager.registerBasicFormats();
     transportSource.addChangeListener(this);
+
     // Dark VOID theme
     setColour(juce::ResizableWindow::backgroundColourId, juce::Colours::black);
     setColour(juce::TextButton::buttonColourId, juce::Colour(0xff0a1a2a));
@@ -58,10 +59,13 @@ MainComponent::MainComponent()
     setColour(juce::Label::textColourId, juce::Colours::lightgrey);
     setColour(juce::ToggleButton::textColourId, juce::Colours::cyan);
     setColour(juce::ToggleButton::tickColourId, juce::Colours::cyan);
+
     addAndMakeVisible(loadButton);
     loadButton.onClick = [this] { loadFile(); };
+
     addAndMakeVisible(loadIRButton);
     loadIRButton.onClick = [this] { loadImpulseResponse(); };
+
     addAndMakeVisible(playStopButton);
     playStopButton.onClick = [this]
     {
@@ -81,16 +85,19 @@ MainComponent::MainComponent()
         }
     };
     playStopButton.setEnabled(false);
+
     addAndMakeVisible(statusLabel);
-    statusLabel.setText("No IR loaded – Dry path active", juce::dontSendNotification);
+    statusLabel.setText("No IR loaded - Dry path active", juce::dontSendNotification);
     statusLabel.setJustificationType(juce::Justification::centred);
     statusLabel.setFont(juce::Font(16.0f, juce::Font::bold));
     statusLabel.setColour(juce::Label::textColourId, juce::Colour(0xff00ff00));
+
     addAndMakeVisible(trackTitleLabel);
     trackTitleLabel.setText("", juce::dontSendNotification);
     trackTitleLabel.setJustificationType(juce::Justification::centred);
     trackTitleLabel.setFont(juce::Font(14.0f));
     trackTitleLabel.setColour(juce::Label::textColourId, juce::Colours::lightgrey);
+
     addAndMakeVisible(wetSlider);
     wetSlider.setRange(0.0, 1.0, 0.01);
     wetSlider.setValue(1.0);
@@ -99,22 +106,26 @@ MainComponent::MainComponent()
     wetSlider.setTextValueSuffix("");
     wetSlider.textFromValueFunction = [](double v) { return juce::String(static_cast<int>(v * 100)); };
     wetSlider.addListener(this);
+
     addAndMakeVisible(wetLabel);
     wetLabel.setText("Reverb (%)", juce::dontSendNotification);
     wetLabel.setJustificationType(juce::Justification::centred);
     wetLabel.setFont(juce::Font(16.0f, juce::Font::bold));
+
     addAndMakeVisible(volumeSlider);
     volumeSlider.setRange(0.0, 2.0, 0.01);
-    volumeSlider.setValue(1.0);
+    volumeSlider.setValue(1.0);  // Default to 100% (unity gain)
     volumeSlider.setSliderStyle(juce::Slider::LinearHorizontal);
     volumeSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 80, 26);
     volumeSlider.setTextValueSuffix("");
     volumeSlider.textFromValueFunction = [](double v) { return juce::String(static_cast<int>(v * 100)); };
     volumeSlider.addListener(this);
+
     addAndMakeVisible(volumeLabel);
     volumeLabel.setText("Master Volume (%)", juce::dontSendNotification);
     volumeLabel.setJustificationType(juce::Justification::centred);
     volumeLabel.setFont(juce::Font(16.0f, juce::Font::bold));
+
     addAndMakeVisible(positionSlider);
     positionSlider.setRange(0.0, 1.0);
     positionSlider.setSliderStyle(juce::Slider::LinearHorizontal);
@@ -122,19 +133,23 @@ MainComponent::MainComponent()
     positionSlider.setMouseDragSensitivity(400);
     positionSlider.setVelocityBasedMode(false);
     positionSlider.addListener(this);
+
     addAndMakeVisible(positionLabel);
     positionLabel.setText("0:00 / 0:00", juce::dontSendNotification);
     positionLabel.setJustificationType(juce::Justification::right);
+
     addAndMakeVisible(exclusiveToggle);
     exclusiveToggle.setButtonText("Exclusive Mode (Bit Perfect)");
     exclusiveToggle.setToggleState(false, juce::dontSendNotification);
     exclusiveToggle.changeWidthToFitText();
     exclusiveToggle.setSize(exclusiveToggle.getWidth() + 250, 90);
     exclusiveToggle.onClick = [this] { applyDeviceType(); };
+
     addAndMakeVisible(bufferSizeLabel);
     bufferSizeLabel.setText("Buffer Size", juce::dontSendNotification);
     bufferSizeLabel.setJustificationType(juce::Justification::right);
     bufferSizeLabel.setFont(juce::Font(16.0f));
+
     addAndMakeVisible(bufferSizeBox);
     bufferSizeBox.addItem("64 samples (ultra-low latency)", 64);
     bufferSizeBox.addItem("128 samples (low latency)", 128);
@@ -143,10 +158,12 @@ MainComponent::MainComponent()
     bufferSizeBox.setSelectedId(256);
     bufferSizeBox.onChange = [this] { applyBufferSize(); };
     bufferSizeBox.setSize(300, 50);
+
     // Upsampling selector
     addAndMakeVisible(upsamplingLabel);
     upsamplingLabel.setText("Upsampling", juce::dontSendNotification);
     upsamplingLabel.setJustificationType(juce::Justification::right);
+
     addAndMakeVisible(upsamplingBox);
     upsamplingBox.addItem("Off", 1);
     upsamplingBox.addItem("2x", 2);
@@ -155,14 +172,18 @@ MainComponent::MainComponent()
     upsamplingBox.addItem("16x", 5);
     upsamplingBox.setSelectedId(1); // Off by default
     upsamplingBox.onChange = [this] { startUpsamplingPrep(); };
-    // Force full volume at start
-    masterVolume = 1.0f;
-    volumeSlider.setValue(1.0, juce::dontSendNotification);
+
+    // Force full volume at start (Q2.30 = 1.0)
+    fixedVolumeQ2_30 = 1LL << 30;
+    volumeSlider.setValue(100.0, juce::dontSendNotification);  // Default to 100% (unity gain)
+
     // Critical: Open audio device and register callback
     setAudioChannels(0, 2);
+
     // Initialize active engines
     activeEngine.store(&convolutionEngine, std::memory_order_release);
     upsampledEngine.store(nullptr, std::memory_order_release);
+
     setSize(1024, 900);
 }
 
@@ -175,6 +196,7 @@ void MainComponent::prepareToPlay(int samplesPerBlockExpected, double sampleRate
 {
     transportSource.prepareToPlay(samplesPerBlockExpected, sampleRate);
     applyBufferSize();
+
     currentSampleRate = sampleRate;
     currentBlockSize = samplesPerBlockExpected;
 }
@@ -188,6 +210,7 @@ void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& buffer
         if (old != &convolutionEngine) delete old;
         pendingEngine.reset();
     }
+
     // Upsampling engine swap
     if (pendingUpsampledEngine && upsamplingFinished.wait(0))
     {
@@ -204,13 +227,24 @@ void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& buffer
 
     transportSource.getNextAudioBlock(bufferToFill);
 
-    // Apply master volume
+    // Q2.30 FIXED-POINT VOLUME APPLICATION (FIXED SCALING – now matches old float loudness)
     for (int ch = 0; ch < bufferToFill.buffer->getNumChannels(); ++ch)
     {
         auto* data = bufferToFill.buffer->getWritePointer(ch, bufferToFill.startSample);
         for (int i = 0; i < bufferToFill.numSamples; ++i)
         {
-            data[i] *= masterVolume;
+            // Scale float [-1..1] to Q2.30 integer (30 fractional bits)
+            int64_t sample = static_cast<int64_t>(data[i] * (1LL << 30));
+
+            // Apply Q2.30 fixed-point volume
+            sample = (sample * fixedVolumeQ2_30) >> 30;
+
+            // Ultra-gentle denormal flush (keep from last working state)
+            if (std::abs(sample) < (1LL << 10)) // ~ -110 dB, very safe
+                sample = 0;
+
+            // Back to float [-1..1] – corrected output scaling to match old loudness
+            data[i] = static_cast<float>(sample) / (1LL << 23);
         }
     }
 
@@ -242,13 +276,16 @@ void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& buffer
         juce::AudioBuffer<float> upBlock(bufferToFill.buffer->getNumChannels(),
                                          bufferToFill.numSamples * currentUpsamplingFactor);
         linearResample(*bufferToFill.buffer, upBlock, static_cast<double>(currentUpsamplingFactor));
+
         // 2. Process with upsampled engine
         engine->processBlock(upBlock.getWritePointer(0, 0),
                              upBlock.getWritePointer(1, 0),
                              upBlock.getNumSamples());
+
         // 3. Downsample output block (simple linear)
         juce::AudioBuffer<float> downBlock(bufferToFill.buffer->getNumChannels(), bufferToFill.numSamples);
         linearResample(upBlock, downBlock, 1.0 / static_cast<double>(currentUpsamplingFactor));
+
         // Copy downsampled result back to output buffer
         for (int ch = 0; ch < bufferToFill.buffer->getNumChannels(); ++ch)
         {
@@ -268,6 +305,7 @@ void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& buffer
                                        bufferToFill.numSamples);
         }
     }
+
     if (transportSource.isPlaying())
     {
         updatePositionSlider();
@@ -287,49 +325,59 @@ void MainComponent::paint(juce::Graphics& g)
 void MainComponent::resized()
 {
     auto area = getLocalBounds().reduced(40);
+
     juce::FlexBox mainFlex;
-    mainFlex.flexDirection = juce::FlexBox::Direction::column;
-    mainFlex.flexWrap = juce::FlexBox::Wrap::noWrap;
-    mainFlex.justifyContent = juce::FlexBox::JustifyContent::flexStart;
-    mainFlex.alignItems = juce::FlexBox::AlignItems::stretch;
+    mainFlex.flexDirection   = juce::FlexBox::Direction::column;
+    mainFlex.flexWrap        = juce::FlexBox::Wrap::noWrap;
+    mainFlex.justifyContent  = juce::FlexBox::JustifyContent::flexStart;
+    mainFlex.alignItems      = juce::FlexBox::AlignItems::stretch;
+
     juce::FlexBox topSection;
     topSection.flexDirection = juce::FlexBox::Direction::column;
     topSection.items.add(juce::FlexItem(statusLabel).withHeight(50));
     topSection.items.add(juce::FlexItem(trackTitleLabel).withHeight(40));
     mainFlex.items.add(juce::FlexItem(topSection).withHeight(110));
+
     mainFlex.items.add(juce::FlexItem().withFlex(1.0f));
+
     juce::FlexBox buttonRow;
-    buttonRow.flexDirection = juce::FlexBox::Direction::row;
-    buttonRow.justifyContent = juce::FlexBox::JustifyContent::center;
-    buttonRow.alignItems = juce::FlexBox::AlignItems::center;
+    buttonRow.flexDirection   = juce::FlexBox::Direction::row;
+    buttonRow.justifyContent  = juce::FlexBox::JustifyContent::center;
+    buttonRow.alignItems      = juce::FlexBox::AlignItems::center;
     buttonRow.items.add(juce::FlexItem(loadButton).withWidth(160).withHeight(70));
     buttonRow.items.add(juce::FlexItem(loadIRButton).withWidth(160).withHeight(70));
     buttonRow.items.add(juce::FlexItem(playStopButton).withWidth(160).withHeight(70));
     mainFlex.items.add(juce::FlexItem(buttonRow).withHeight(100));
+
     juce::FlexBox seekRow;
     seekRow.flexDirection = juce::FlexBox::Direction::row;
-    seekRow.alignItems = juce::FlexBox::AlignItems::center;
+    seekRow.alignItems    = juce::FlexBox::AlignItems::center;
     seekRow.items.add(juce::FlexItem(positionSlider).withFlex(1.0f).withMinHeight(60));
     seekRow.items.add(juce::FlexItem(positionLabel).withWidth(220).withMinHeight(60));
     mainFlex.items.add(juce::FlexItem(seekRow).withHeight(100));
+
     mainFlex.items.add(juce::FlexItem(wetLabel).withHeight(30));
     mainFlex.items.add(juce::FlexItem(wetSlider).withHeight(80).withMinHeight(80));
+
     mainFlex.items.add(juce::FlexItem(volumeLabel).withHeight(30));
     mainFlex.items.add(juce::FlexItem(volumeSlider).withHeight(80).withMinHeight(80));
+
     juce::FlexBox bottomRow;
-    bottomRow.flexDirection = juce::FlexBox::Direction::row;
-    bottomRow.justifyContent = juce::FlexBox::JustifyContent::spaceBetween;
-    bottomRow.alignItems = juce::FlexBox::AlignItems::center;
+    bottomRow.flexDirection   = juce::FlexBox::Direction::row;
+    bottomRow.justifyContent  = juce::FlexBox::JustifyContent::spaceBetween;
+    bottomRow.alignItems      = juce::FlexBox::AlignItems::center;
     bottomRow.items.add(juce::FlexItem(exclusiveToggle).withMinWidth(500).withHeight(120));
     bottomRow.items.add(juce::FlexItem(bufferSizeBox).withMinWidth(350).withHeight(70));
     mainFlex.items.add(juce::FlexItem(bottomRow).withHeight(160));
+
     // Upsampling row
     juce::FlexBox upsamplingRow;
     upsamplingRow.flexDirection = juce::FlexBox::Direction::row;
-    upsamplingRow.alignItems = juce::FlexBox::AlignItems::center;
+    upsamplingRow.alignItems    = juce::FlexBox::AlignItems::center;
     upsamplingRow.items.add(juce::FlexItem(upsamplingLabel).withWidth(150).withMinHeight(40));
     upsamplingRow.items.add(juce::FlexItem(upsamplingBox).withFlex(1.0f).withMaxWidth(300).withMinHeight(40));
     mainFlex.items.add(juce::FlexItem(upsamplingRow).withHeight(80).withMinHeight(80));
+
     mainFlex.performLayout(area.toFloat());
 }
 
@@ -354,7 +402,14 @@ void MainComponent::sliderValueChanged(juce::Slider* slider)
     }
     else if (slider == &volumeSlider)
     {
-        masterVolume = static_cast<float>(volumeSlider.getValue());
+        float volPercent = static_cast<float>(volumeSlider.getValue());  // 0..200
+        float volLinear = volPercent / 100.0f;                           // 0.0 .. 2.0
+
+        // Convert to Q2.30 fixed-point (safe headroom for 200%)
+        fixedVolumeQ2_30 = static_cast<int32_t>(volLinear * (1LL << 30));
+
+        // Optional soft clamp (extra safety)
+        if (fixedVolumeQ2_30 > (2LL << 30)) fixedVolumeQ2_30 = (2LL << 30);
     }
     else if (slider == &positionSlider)
     {
@@ -402,7 +457,9 @@ void MainComponent::applyDeviceType()
     juce::AudioDeviceManager::AudioDeviceSetup setup = deviceManager.getAudioDeviceSetup();
     setup.useDefaultInputChannels = true;
     setup.useDefaultOutputChannels = true;
+
     deviceManager.setCurrentAudioDeviceType("Windows Audio", true);
+
     if (useExclusiveMode)
     {
         deviceManager.initialise(0, 2, nullptr, true, juce::String(), &setup);
@@ -454,11 +511,14 @@ void MainComponent::loadImpulseResponse()
                                  auto file = fc.getResult();
                                  if (file == juce::File{})
                                      return;
+
                                  statusLabel.setText("Loading IR... (background)", juce::dontSendNotification);
+
                                  std::thread([this, file]()
                                  {
                                      auto newEngine = std::make_unique<VoidConvolutionEngine>();
                                      newEngine->prepare(currentSampleRate, currentBlockSize);
+
                                      // Load the IR from file into buffer
                                      auto* reader = formatManager.createReaderFor(file);
                                      if (reader != nullptr)
@@ -466,10 +526,13 @@ void MainComponent::loadImpulseResponse()
                                          juce::AudioBuffer<float> irBuffer(static_cast<int>(reader->numChannels), static_cast<int>(reader->lengthInSamples));
                                          reader->read(&irBuffer, 0, static_cast<int>(reader->lengthInSamples), 0, true, true);
                                          delete reader;
+
                                          newEngine->loadIR(irBuffer);
                                      }
+
                                      pendingEngine = std::move(newEngine);
                                      loadingFinished.signal();
+
                                      juce::MessageManager::callAsync([this, file]()
                                      {
                                          statusLabel.setText("IR: " + file.getFileName() + " – Q64 Eternal Void Active", juce::dontSendNotification);
@@ -482,16 +545,19 @@ void MainComponent::startUpsamplingPrep()
 {
     int selectedId = upsamplingBox.getSelectedId();
     int factor = 1;
+
     switch (selectedId)
     {
-        case 1: factor = 1; break; // Off
-        case 2: factor = 2; break;
-        case 3: factor = 4; break;
-        case 4: factor = 8; break;
-        case 5: factor = 16; break;
+        case 1: factor = 1;   break; // Off
+        case 2: factor = 2;   break;
+        case 3: factor = 4;   break;
+        case 4: factor = 8;   break;
+        case 5: factor = 16;  break;
         default: factor = 1;
     }
+
     currentUpsamplingFactor = factor;
+
     if (factor == 1)
     {
         auto* old = upsampledEngine.exchange(nullptr, std::memory_order_release);
@@ -500,21 +566,28 @@ void MainComponent::startUpsamplingPrep()
         statusLabel.setText("Upsampling Off", juce::dontSendNotification);
         return;
     }
+
     statusLabel.setText("Preparing upsampling ×" + juce::String(factor) + "... (background)", juce::dontSendNotification);
+
     std::thread([this, factor]()
     {
         auto newEngine = std::make_unique<VoidConvolutionEngine>();
+
         // Prepare at upsampled rate
         newEngine->prepare(currentSampleRate * factor, currentBlockSize * factor);
+
         // Resample current IR to factor × rate (manual linear)
         juce::AudioBuffer<float> upsampledIR = resampleIR(convolutionEngine.getCurrentIR(),
                                                           currentSampleRate,
                                                           currentSampleRate * factor);
+
         // Load the upsampled IR into the new engine
         newEngine->loadIR(upsampledIR);
+
         // Signal completion
         pendingUpsampledEngine = std::move(newEngine);
         upsamplingFinished.signal();
+
         juce::MessageManager::callAsync([this, factor]()
         {
             statusLabel.setText("Upsampling ×" + juce::String(factor) + " Active", juce::dontSendNotification);

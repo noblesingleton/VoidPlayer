@@ -3,23 +3,23 @@
 #include <JuceHeader.h>
 #include "VoidConvolutionEngine.h"
 
-class MainComponent  : public juce::AudioAppComponent,
-                       public juce::ChangeListener,
-                       public juce::Slider::Listener
+class MainComponent : public juce::AudioAppComponent,
+                      public juce::ChangeListener,
+                      public juce::Slider::Listener
 {
 public:
     MainComponent();
     ~MainComponent() override;
 
-    void prepareToPlay (int samplesPerBlockExpected, double sampleRate) override;
-    void getNextAudioBlock (const juce::AudioSourceChannelInfo& bufferToFill) override;
+    void prepareToPlay(int samplesPerBlockExpected, double sampleRate) override;
+    void getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferToFill) override;
     void releaseResources() override;
 
-    void paint (juce::Graphics&) override;
+    void paint(juce::Graphics&) override;
     void resized() override;
 
-    void changeListenerCallback (juce::ChangeBroadcaster* source) override;
-    void sliderValueChanged (juce::Slider* slider) override;
+    void changeListenerCallback(juce::ChangeBroadcaster* source) override;
+    void sliderValueChanged(juce::Slider* slider) override;
 
     void applyDeviceType();
     void applyBufferSize();
@@ -72,8 +72,8 @@ private:
     float masterVolume{1.0f};
     bool useExclusiveMode{false};
 
-    // Random for TPDF dither (used in volume loop)
-    juce::Random rand;
+    // Q2.30 fixed-point volume (1.0 = unity gain)
+    int64_t fixedVolumeQ2_30 = 1LL << 30;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainComponent)
 };
